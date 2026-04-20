@@ -3,7 +3,7 @@ SandboxVars = {
     Speed = 1,
 
     -- ── Zombies ──
-    Zombies = 4,                -- 1=Insane 2=VeryHigh 3=High 4=Normal 5=Low
+    Zombies = 5,                -- 1=Insane 2=VeryHigh 3=High 4=Normal 5=Low
     Distribution = 1,           -- 1=Urban Focused 2=Uniform
     DayLength = 3,              -- 1=15min 2=30min 3=1hr 4=2hr 5=3hr (1hr is a sweet spot)
     StartYear = 1,
@@ -60,11 +60,11 @@ SandboxVars = {
     InjurySeverity = 3,         -- 1=Low 2=Normal 3=Normal
 
     -- ── Zombie Population Over Time ──
-    ZombieRespawn = 72,         -- hours before zombies respawn (72 = 3 days, slow repopulation)
-    ZombieRespawnPercent = 0.05,-- only 5% respawn each cycle
-    RedistributeHours = 12,     -- how often zombies redistribute
-    RedistributePercent = 0.01,
-    RearZoneRespawnOffset = 72,
+    ZombieRespawn = 168,         -- 168 hours (7 days) before respawn starts
+    ZombieRespawnPercent = 0.01, -- only 1% trickle back each cycle
+    RedistributeHours = 48,      -- redistribute every 2 days (slow migration)
+    RedistributePercent = 0.005, -- 0.5% migrate — barely noticeable
+    RearZoneRespawnOffset = 168,
     FollowSoundDistance = 100,  -- default 100
     RallyGroupSize = 20,       -- smaller hordes (default 20)
     RallyTravelDistance = 20,
