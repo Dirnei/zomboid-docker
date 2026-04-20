@@ -21,7 +21,7 @@ services:
     volumes:
       - server-data:/home/steam/ZomboidDedicatedServer
       - server-saves:/home/steam/Zomboid
-      - ./server-config/SandboxVars.lua:/home/steam/Zomboid/Server/${SERVER_NAME}_SandboxVars.lua
+      - ./server-config/SandboxVars.lua:/home/steam/Zomboid/Server/${SERVER_NAME}_SandboxVars.lua:ro
     stdin_open: true
     tty: true
 
