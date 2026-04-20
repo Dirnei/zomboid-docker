@@ -1,0 +1,59 @@
+services:
+  zomboid:
+    image: renegademaster/zomboid-dedicated-server:latest
+    container_name: zomboid-server
+    restart: unless-stopped
+    environment:
+      - SERVER_NAME=${SERVER_NAME}
+      - SERVER_PASSWORD=${SERVER_PASSWORD}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - MAX_PLAYERS=${MAX_PLAYERS}
+      - MOD_IDS=${MOD_IDS}
+      - MOD_WORKSHOP_IDS=${MOD_WORKSHOP_IDS}
+      - SERVER_MEMORY=${SERVER_MEMORY}
+      - RCON_PASSWORD=${RCON_PASSWORD}
+      - RCON_PORT=${RCON_PORT}
+      - TZ=${TZ}
+    ports:
+      - "${GAME_PORT}:16261/udp"
+      - "${DIRECT_PORT}:16262/udp"
+      - "${RCON_PORT}:${RCON_PORT}"
+    volumes:
+      - server-data:/home/steam/ZomboidDedicatedServer
+      - server-saves:/home/steam/Zomboid
+      - ./server-config/SandboxVars.lua:/home/steam/Zomboid/Server/${SERVER_NAME}_SandboxVars.lua
+      - ./server-config/servertest.ini:/home/steam/Zomboid/Server/${SERVER_NAME}.ini
+    stdin_open: true
+    tty: true
+
+  backup:
+    image: alpine:latest
+    container_name: zomboid-backup
+    restart: unless-stopped
+    depends_on:
+      - zomboid
+    environment:
+      - BACKUP_CRON=${BACKUP_CRON}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS}
+      - TZ=${TZ}
+    volumes:
+      - server-saves:/data/saves:ro
+      - backups:/data/backups
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache tzdata
+        echo "$${BACKUP_CRON} tar czf /data/backups/zomboid-backup-\$$(date +\%Y\%m\%d-\%H\%M\%S).tar.gz -C /data/saves . && find /data/backups -name '*.tar.gz' -mtime +$${BACKUP_RETENTION_DAYS} -delete" | crontab -
+        echo "Backup sidecar started — schedule: $${BACKUP_CRON}, retention: $${BACKUP_RETENTION_DAYS} days"
+        crond -f -l 2
+
+volumes:
+  server-data:
+  server-saves:
+  backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./backups
