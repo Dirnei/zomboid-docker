@@ -60,11 +60,11 @@ SandboxVars = {
     InjurySeverity = 3,         -- 1=Low 2=Normal 3=Normal
 
     -- ── Zombie Population Over Time ──
-    ZombieRespawn = 168,         -- 168 hours (7 days) before respawn starts
-    ZombieRespawnPercent = 0.01, -- only 1% trickle back each cycle
-    RedistributeHours = 48,      -- redistribute every 2 days (slow migration)
-    RedistributePercent = 0.005, -- 0.5% migrate — barely noticeable
-    RearZoneRespawnOffset = 168,
+    ZombieRespawn = 336,          -- 336 hours (14 days) before respawn starts
+    ZombieRespawnPercent = 0.005, -- 0.5% trickle back each cycle
+    RedistributeHours = 0,        -- disabled — zombies stay where they are
+    RedistributePercent = 0.0,
+    RearZoneRespawnOffset = 336,
     FollowSoundDistance = 100,  -- default 100
     RallyGroupSize = 20,       -- smaller hordes (default 20)
     RallyTravelDistance = 20,
