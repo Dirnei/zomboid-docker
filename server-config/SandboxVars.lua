@@ -32,8 +32,8 @@ SandboxVars = {
     Rain = 3,                   -- 1=VeryDry to 5=VeryRainy (3=Normal)
     ErosionSpeed = 3,           -- 1=VeryFast to 5=VerySlow (3=Normal)
     ErosionDays = 0,
-    FarmingSpeed = 3,           -- 1=VeryFast to 5=VerySlow (3=Normal)
-    NatureAbundance = 3,        -- 1=VeryPoor to 5=VeryAbundant
+    FarmingSpeed = 2,           -- 1=VeryFast to 5=VerySlow (2=Fast)
+    NatureAbundance = 4,        -- 1=VeryPoor to 5=VeryAbundant
     CompostTime = 2,            -- 1=1week to 5=4weeks
     Alarm = 6,                  -- 1=Never to 6=VeryRare (fewer alarm traps)
     LockedHouses = 6,           -- 1=Never to 6=VeryRare (easier entry)
@@ -43,7 +43,7 @@ SandboxVars = {
     ZombieStrength = 3,         -- 1=Superhuman 2=Normal 3=Weak
     ZombieToughness = 3,        -- 1=Tough 2=Normal 3=Fragile
     ZombieCognition = 3,        -- 1=Navigate+Doors 2=Navigate 3=Basic (dumber zombies)
-    ZombieMemory = 2,           -- 1=Long 2=Normal 3=Short 4=None
+    ZombieMemory = 3,           -- 1=Long 2=Normal 3=Short 4=None
     ZombieSight = 2,            -- 1=Eagle 2=Normal 3=Poor
     ZombieHearing = 2,          -- 1=Pinpoint 2=Normal 3=Poor
     ZombieSmell = 2,            -- 1=Bloodhound 2=Normal 3=Poor
@@ -55,16 +55,16 @@ SandboxVars = {
     Transmission = 4,           -- 1=Blood+Saliva 2=Saliva Only 3=Everyone's Infected 4=None
     Mortality = 5,              -- 1=Instant 2=0-30sec 3=0-1min 4=0-12hr 5=2-3days 6=1-2weeks
     Reanimate = 3,              -- 1=Instant 2=0-30sec 3=0-1min 4=0-12hr 5=2-3days 6=1-2weeks
-    BodyRemoval = 0,            -- 0=Never (bodies stay as warning markers)
+    BodyRemoval = 5,            -- 0=Never 1=1day 2=2days 3=3days 4=5days 5=7days
     Infection = 2,              -- 1=Normal 2=Normal (wound infection, not zombie)
     InjurySeverity = 3,         -- 1=Low 2=Normal 3=Normal
 
     -- ── Zombie Population Over Time ──
-    ZombieRespawn = 336,          -- 336 hours (14 days) before respawn starts
-    ZombieRespawnPercent = 0.005, -- 0.5% trickle back each cycle
-    RedistributeHours = 0,        -- disabled — zombies stay where they are
+    ZombieRespawn = 0,             -- 0 = disabled
+    ZombieRespawnPercent = 0.0,
+    RedistributeHours = 0,
     RedistributePercent = 0.0,
-    RearZoneRespawnOffset = 336,
+    RearZoneRespawnOffset = 0,
     FollowSoundDistance = 100,  -- default 100
     RallyGroupSize = 20,       -- smaller hordes (default 20)
     RallyTravelDistance = 20,
@@ -72,7 +72,7 @@ SandboxVars = {
     RallyGroupRadius = 20,
 
     -- ── Meta Events (helicopter, gunshots etc.) ──
-    Meta = 2,                   -- 1=Never 2=Sometimes 3=Often
+    Meta = 1,                   -- 1=Never 2=Sometimes 3=Often
 
     -- ── XP & Skills ──
     -- Faster leveling so noobs feel progress
@@ -82,12 +82,12 @@ SandboxVars = {
 
     -- ── Vehicle ──
     EnableVehicles = true,
-    CarSpawnRate = 3,           -- 1=None 2=VeryLow 3=Low 4=Normal
-    ChanceHasGas = 5,           -- 1-100 (higher = more cars with gas)
+    CarSpawnRate = 4,           -- 1=None 2=VeryLow 3=Low 4=Normal
+    ChanceHasGas = 50,          -- 1-100 (higher = more cars with gas)
     InitialGas = 4,             -- 1=Empty to 5=Full (start with decent gas)
     CarGasConsumption = 0.8,    -- lower = less gas usage
     LockedCar = 3,              -- 1=Never to 6=VeryRare
-    CarGeneralCondition = 3,    -- 1=VeryLow to 5=VeryHigh
+    CarGeneralCondition = 4,    -- 1=VeryLow to 5=VeryHigh
     CarDamageOnImpact = 3,      -- 1=VeryLow to 5=VeryHigh
     DamageToPlayerFromHitByACar = 3, -- 1=None to 5=VeryHigh
     TrafficJam = true,
