@@ -26,16 +26,23 @@ edit_discord() {
         -d "{\"content\": \"${content}\"}" > /dev/null 2>&1
 }
 
-create_status_msg() {
-    local response
-    response=$(curl -s -X POST "$DISCORD_API" \
-        -H "$AUTH_HEADER" \
-        -H "Content-Type: application/json" \
-        -d '{"content": ":busts_in_silhouette: **Spieler online (0):** keine"}')
-    local msg_id
-    msg_id=$(echo "$response" | grep -oP '"id"\s*:\s*"\K[0-9]+' | head -1)
-    echo "$msg_id" > "$STATUS_MSG_FILE"
-    echo "discord-events: status message id=${msg_id}"
+init_status_msg() {
+    if [ -n "$DISCORD_STATUS_MSG_ID" ]; then
+        echo "$DISCORD_STATUS_MSG_ID" > "$STATUS_MSG_FILE"
+        echo "discord-events: reusing status message id=${DISCORD_STATUS_MSG_ID}"
+        update_player_list
+    else
+        local response
+        response=$(curl -s -X POST "$DISCORD_API" \
+            -H "$AUTH_HEADER" \
+            -H "Content-Type: application/json" \
+            -d '{"content": ":busts_in_silhouette: **Spieler online (0):** keine"}')
+        local msg_id
+        msg_id=$(echo "$response" | grep -oP '"id"\s*:\s*"\K[0-9]+' | head -1)
+        echo "$msg_id" > "$STATUS_MSG_FILE"
+        echo "discord-events: created status message id=${msg_id}"
+        echo "discord-events: >>> Add DISCORD_STATUS_MSG_ID=${msg_id} to .env to persist across restarts <<<"
+    fi
 }
 
 update_player_list() {
@@ -83,7 +90,7 @@ while read -r line; do
     case "$line" in
         *"SERVER STARTED"*)
             send_discord ":white_check_mark: **Server ist online — bereit zum Beitreten!**"
-            create_status_msg ;;
+            init_status_msg ;;
         *"fully-connected"*)
             player=$(echo "$line" | grep -oP 'username="\K[^"]+')
             send_discord ":green_circle: **${player:-Ein Spieler}** hat den Server betreten"

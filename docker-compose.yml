@@ -16,6 +16,7 @@ services:
       - TZ=${TZ}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - DISCORD_CHANNEL_ID=${DISCORD_CHANNEL_ID}
+      - DISCORD_STATUS_MSG_ID=${DISCORD_STATUS_MSG_ID}
     entrypoint: ["/bin/bash", "/overrides/entrypoint.sh"]
     ports:
       - "${GAME_PORT}:16261/udp"
