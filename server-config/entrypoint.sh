@@ -53,7 +53,7 @@ if [ -n "$DISCORD_TOKEN" ] && [ -n "$DISCORD_CHANNEL_ID" ]; then
     /bin/bash /overrides/discord-events.sh &
 fi
 
-# Start the server in the background
+# Start the server in the background, watch for ready message
 /home/steam/run_server.sh &
 SERVER_PID=$!
 

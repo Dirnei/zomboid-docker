@@ -1,41 +1,34 @@
 #!/bin/bash
-# Watches PZ server logs and posts player events to Discord via bot API.
+# Watches PZ server console log and posts events to Discord via bot API.
 
-LOG_DIR="/home/steam/Zomboid/Logs"
+LOG_FILE="/home/steam/Zomboid/console.txt"
 
 send_discord() {
-    local message="$1"
     curl -s -X POST "https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages" \
         -H "Authorization: Bot ${DISCORD_TOKEN}" \
         -H "Content-Type: application/json" \
-        -d "{\"content\": \"${message}\"}" > /dev/null 2>&1
+        -d "{\"content\": \"$1\"}" > /dev/null 2>&1
 }
 
-echo "discord-events: waiting for log directory..."
-while [ ! -d "$LOG_DIR" ]; do
+echo "discord-events: waiting for ${LOG_FILE}..."
+while [ ! -f "$LOG_FILE" ]; do
     sleep 5
 done
 
-# Find the most recent log file and tail it
 echo "discord-events: watching logs..."
-tail -n 0 -F "${LOG_DIR}"/*user.txt 2>/dev/null | while read -r line; do
-    if echo "$line" | grep -qi "fully connected"; then
-        player=$(echo "$line" | grep -oP 'user "\K[^"]+' || echo "$line" | sed 's/.*"\(.*\)".*/\1/')
-        send_discord ":green_circle: **${player:-A player}** connected"
-    elif echo "$line" | grep -qi "disconnected"; then
-        player=$(echo "$line" | grep -oP 'user "\K[^"]+' || echo "$line" | sed 's/.*"\(.*\)".*/\1/')
-        send_discord ":red_circle: **${player:-A player}** disconnected"
-    fi
-done &
-
-tail -n 0 -F "${LOG_DIR}"/*Death*.txt 2>/dev/null | while read -r line; do
-    if echo "$line" | grep -qi "died\|killed\|death"; then
-        send_discord ":skull: ${line}"
-    fi
-done &
-
-# Post server online message
-send_discord ":white_check_mark: **Server is online**"
-
-# Wait for background jobs
-wait
+tail -n 0 -F "$LOG_FILE" | while read -r line; do
+    case "$line" in
+        *"Starting Project Zomboid Server"*)
+            send_discord ":hourglass: **Server is starting up...**" ;;
+        *"LuaNet: Listening"*)
+            send_discord ":white_check_mark: **Server is online — ready to join!**" ;;
+        *"fully connected"*)
+            player=$(echo "$line" | grep -oP '"\K[^"]+' | head -1)
+            send_discord ":green_circle: **${player:-A player}** connected" ;;
+        *"disconnected"*)
+            player=$(echo "$line" | grep -oP '"\K[^"]+' | head -1)
+            send_discord ":red_circle: **${player:-A player}** disconnected" ;;
+        *"died"*|*"killed"*)
+            send_discord ":skull: ${line}" ;;
+    esac
+done
