@@ -2,10 +2,12 @@
 # Watches PZ server console log and posts events to Discord via bot API.
 
 LOG_DIR="/home/steam/Zomboid/Logs"
+DISCORD_API="https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages"
+AUTH_HEADER="Authorization: Bot ${DISCORD_TOKEN}"
 
 send_discord() {
-    curl -s -X POST "https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages" \
-        -H "Authorization: Bot ${DISCORD_TOKEN}" \
+    curl -s -X POST "$DISCORD_API" \
+        -H "$AUTH_HEADER" \
         -H "Content-Type: application/json" \
         -d "{\"content\": \"$1\"}" > /dev/null 2>&1
 }
@@ -18,8 +20,11 @@ while ! ls "${LOG_DIR}"/*_DebugLog-server.txt &>/dev/null; do
     sleep 5
 done
 
-echo "discord-events: watching logs..."
-tail -n 0 -F "${LOG_DIR}"/*_DebugLog-server.txt 2>/dev/null | while read -r line; do
+LOG_FILE=$(ls -t "${LOG_DIR}"/*_DebugLog-server.txt | head -1)
+echo "discord-events: watching ${LOG_FILE}..."
+
+# Use process substitution instead of pipe to avoid subshell
+while read -r line; do
     case "$line" in
         *"Starting Project Zomboid Server"*)
             send_discord ":hourglass: **Server is starting up...**" ;;
@@ -34,4 +39,4 @@ tail -n 0 -F "${LOG_DIR}"/*_DebugLog-server.txt 2>/dev/null | while read -r line
         *"died"*|*"killed"*)
             send_discord ":skull: ${line}" ;;
     esac
-done
+done < <(tail -n 0 -F "$LOG_FILE" 2>/dev/null)
