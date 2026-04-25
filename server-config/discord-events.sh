@@ -70,7 +70,7 @@ remove_player() {
     update_player_list
 }
 
-trap 'send_discord ":octagonal_sign: **Server wird heruntergefahren...**"; exit 0' SIGTERM SIGINT
+trap 'send_discord ":octagonal_sign: **Server wird heruntergefahren...**"; kill $(jobs -p) 2>/dev/null; exit 0' SIGTERM SIGINT
 
 send_discord ":hourglass: **Server startet...**"
 
@@ -99,8 +99,24 @@ while read -r line; do
             player=$(echo "$line" | grep -oP 'username="\K[^"]+')
             send_discord ":red_circle: **${player:-Ein Spieler}** hat den Server verlassen"
             [ -n "$player" ] && remove_player "$player" ;;
-        *"replacing dead player"*)
-            player=$(echo "$line" | grep -oP 'username="\K[^"]+')
+    esac
+done < <(tail -n +1 -F "$LOG_FILE" 2>/dev/null) &
+
+# Watch user log for deaths
+rm -f "${LOG_DIR}"/*_user.txt 2>/dev/null
+
+echo "discord-events: waiting for user log..."
+while ! ls "${LOG_DIR}"/*_user.txt &>/dev/null; do
+    sleep 5
+done
+
+USER_LOG=$(ls -t "${LOG_DIR}"/*_user.txt | head -1)
+echo "discord-events: watching ${USER_LOG}..."
+
+while read -r line; do
+    case "$line" in
+        *" died at "*)
+            player=$(echo "$line" | grep -oP 'user \K\S+(?= died at)')
             send_discord ":skull: **${player:-Ein Spieler}** ist gestorben" ;;
     esac
-done < <(tail -n +1 -F "$LOG_FILE" 2>/dev/null)
+done < <(tail -n +1 -F "$USER_LOG" 2>/dev/null)
