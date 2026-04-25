@@ -12,6 +12,10 @@ send_discord() {
         -d "{\"content\": \"$1\"}" > /dev/null 2>&1
 }
 
+trap 'send_discord ":octagonal_sign: **Server wird heruntergefahren...**"; exit 0' SIGTERM SIGINT
+
+send_discord ":hourglass: **Server startet...**"
+
 # Clean old logs so tail only picks up the fresh one
 rm -f "${LOG_DIR}"/*_DebugLog-server.txt 2>/dev/null
 
@@ -26,17 +30,16 @@ echo "discord-events: watching ${LOG_FILE}..."
 # tail -n +1 reads existing content first, then -F follows new lines
 while read -r line; do
     case "$line" in
-        *"Starting Project Zomboid Server"*)
-            send_discord ":hourglass: **Server is starting up...**" ;;
         *"SERVER STARTED"*)
-            send_discord ":white_check_mark: **Server is online — ready to join!**" ;;
+            send_discord ":white_check_mark: **Server ist online — bereit zum Beitreten!**" ;;
         *"fully-connected"*)
             player=$(echo "$line" | grep -oP 'username="\K[^"]+')
-            send_discord ":green_circle: **${player:-A player}** joined the server" ;;
+            send_discord ":green_circle: **${player:-Ein Spieler}** hat den Server betreten" ;;
         *"receive-disconnect"*)
             player=$(echo "$line" | grep -oP 'username="\K[^"]+')
-            send_discord ":red_circle: **${player:-A player}** left the server" ;;
-        *"died"*|*"killed"*)
-            send_discord ":skull: ${line}" ;;
+            send_discord ":red_circle: **${player:-Ein Spieler}** hat den Server verlassen" ;;
+        *"replacing dead player"*)
+            player=$(echo "$line" | grep -oP 'username="\K[^"]+')
+            send_discord ":skull: **${player:-Ein Spieler}** ist gestorben" ;;
     esac
 done < <(tail -n +1 -F "$LOG_FILE" 2>/dev/null)
