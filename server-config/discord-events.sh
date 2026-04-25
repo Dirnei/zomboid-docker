@@ -23,20 +23,20 @@ done
 LOG_FILE=$(ls -t "${LOG_DIR}"/*_DebugLog-server.txt | head -1)
 echo "discord-events: watching ${LOG_FILE}..."
 
-# Use process substitution instead of pipe to avoid subshell
+# tail -n +1 reads existing content first, then -F follows new lines
 while read -r line; do
     case "$line" in
         *"Starting Project Zomboid Server"*)
             send_discord ":hourglass: **Server is starting up...**" ;;
-        *"LuaNet: Listening"*)
+        *"SERVER STARTED"*)
             send_discord ":white_check_mark: **Server is online — ready to join!**" ;;
-        *"fully connected"*)
-            player=$(echo "$line" | grep -oP '"\K[^"]+' | head -1)
-            send_discord ":green_circle: **${player:-A player}** connected" ;;
-        *"disconnected"*)
-            player=$(echo "$line" | grep -oP '"\K[^"]+' | head -1)
-            send_discord ":red_circle: **${player:-A player}** disconnected" ;;
+        *"fully-connected"*)
+            player=$(echo "$line" | grep -oP 'username="\K[^"]+')
+            send_discord ":green_circle: **${player:-A player}** joined the server" ;;
+        *"receive-disconnect"*)
+            player=$(echo "$line" | grep -oP 'username="\K[^"]+')
+            send_discord ":red_circle: **${player:-A player}** left the server" ;;
         *"died"*|*"killed"*)
             send_discord ":skull: ${line}" ;;
     esac
-done < <(tail -n 0 -F "$LOG_FILE" 2>/dev/null)
+done < <(tail -n +1 -F "$LOG_FILE" 2>/dev/null)
