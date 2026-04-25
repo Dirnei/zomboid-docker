@@ -6,9 +6,10 @@ LOG_DIR="/home/steam/Zomboid/Logs"
 DISCORD_API="https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages"
 AUTH_HEADER="Authorization: Bot ${DISCORD_TOKEN}"
 PLAYER_FILE="/tmp/online_players.txt"
-STATUS_MSG_ID=""
+STATUS_MSG_FILE="/tmp/status_msg_id.txt"
 
 > "$PLAYER_FILE"
+> "$STATUS_MSG_FILE"
 
 send_discord() {
     curl -s -X POST "$DISCORD_API" \
@@ -30,33 +31,37 @@ create_status_msg() {
     response=$(curl -s -X POST "$DISCORD_API" \
         -H "$AUTH_HEADER" \
         -H "Content-Type: application/json" \
-        -d '{"content": ":busts_in_silhouette: **Spieler online:** keine"}')
-    STATUS_MSG_ID=$(echo "$response" | grep -oP '"id"\s*:\s*"\K[0-9]+' | head -1)
-    echo "discord-events: status message id=${STATUS_MSG_ID}"
+        -d '{"content": ":busts_in_silhouette: **Spieler online (0):** keine"}')
+    local msg_id
+    msg_id=$(echo "$response" | grep -oP '"id"\s*:\s*"\K[0-9]+' | head -1)
+    echo "$msg_id" > "$STATUS_MSG_FILE"
+    echo "discord-events: status message id=${msg_id}"
+    curl -s -X PUT "https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/pins/${msg_id}" \
+        -H "$AUTH_HEADER" > /dev/null 2>&1
 }
 
 update_player_list() {
-    [ -z "$STATUS_MSG_ID" ] && return
+    local msg_id
+    msg_id=$(cat "$STATUS_MSG_FILE" 2>/dev/null)
+    [ -z "$msg_id" ] && return
     local count
     count=$(wc -l < "$PLAYER_FILE" | tr -d ' ')
     if [ "$count" -eq 0 ]; then
-        edit_discord "$STATUS_MSG_ID" ":busts_in_silhouette: **Spieler online (0):** keine"
+        edit_discord "$msg_id" ":busts_in_silhouette: **Spieler online (0):** keine"
     else
         local players
         players=$(sed 's/^/• /' "$PLAYER_FILE" | tr '\n' ',' | sed 's/,$//' | sed 's/,/ | /g')
-        edit_discord "$STATUS_MSG_ID" ":busts_in_silhouette: **Spieler online (${count}):** ${players}"
+        edit_discord "$msg_id" ":busts_in_silhouette: **Spieler online (${count}):** ${players}"
     fi
 }
 
 add_player() {
-    local player="$1"
-    grep -qxF "$player" "$PLAYER_FILE" 2>/dev/null || echo "$player" >> "$PLAYER_FILE"
+    grep -qxF "$1" "$PLAYER_FILE" 2>/dev/null || echo "$1" >> "$PLAYER_FILE"
     update_player_list
 }
 
 remove_player() {
-    local player="$1"
-    grep -vxF "$player" "$PLAYER_FILE" > "${PLAYER_FILE}.tmp" && mv "${PLAYER_FILE}.tmp" "$PLAYER_FILE"
+    grep -vxF "$1" "$PLAYER_FILE" > "${PLAYER_FILE}.tmp" && mv "${PLAYER_FILE}.tmp" "$PLAYER_FILE"
     update_player_list
 }
 
