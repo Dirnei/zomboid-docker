@@ -12,10 +12,10 @@ SandboxVars = {
     StartTime = 2,              -- 1=7am 2=9am 3=12pm 4=2pm 5=5pm 6=9pm 7=12am 8=2am 9=5am
 
     -- ── Utilities ──
-    WaterShut = 7,              -- 1-6 months (gives noobs a long grace period)
-    WaterShutModifier = 14,     -- days after shutoff range starts
-    ElecShut = 7,               -- 1-6 months
-    ElecShutModifier = 14,
+    WaterShut = 0,              -- 0=Never
+    WaterShutModifier = 0,
+    ElecShut = 0,               -- 0=Never
+    ElecShutModifier = 0,
 
     -- ── Loot ──
     FoodLoot = 4,               -- 1=VeryRare to 5=Abundant
