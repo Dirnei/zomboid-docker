@@ -1,7 +1,7 @@
 #!/bin/bash
 # Watches PZ server console log and posts events to Discord via bot API.
 
-LOG_FILE="/home/steam/Zomboid/console.txt"
+LOG_DIR="/home/steam/Zomboid/Logs"
 
 send_discord() {
     curl -s -X POST "https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages" \
@@ -10,13 +10,16 @@ send_discord() {
         -d "{\"content\": \"$1\"}" > /dev/null 2>&1
 }
 
-echo "discord-events: waiting for ${LOG_FILE}..."
-while [ ! -f "$LOG_FILE" ]; do
+# Clean old logs so tail only picks up the fresh one
+rm -f "${LOG_DIR}"/*_DebugLog-server.txt 2>/dev/null
+
+echo "discord-events: waiting for fresh log..."
+while ! ls "${LOG_DIR}"/*_DebugLog-server.txt &>/dev/null; do
     sleep 5
 done
 
 echo "discord-events: watching logs..."
-tail -n 0 -F "$LOG_FILE" | while read -r line; do
+tail -n 0 -F "${LOG_DIR}"/*_DebugLog-server.txt 2>/dev/null | while read -r line; do
     case "$line" in
         *"Starting Project Zomboid Server"*)
             send_discord ":hourglass: **Server is starting up...**" ;;
