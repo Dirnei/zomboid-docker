@@ -42,6 +42,11 @@ patch_key() {
 # If .ini already exists from a previous run, patch before server starts
 patch_ini
 
+# Start Discord event watcher in the background
+if [ -n "$DISCORD_TOKEN" ] && [ -n "$DISCORD_CHANNEL_ID" ]; then
+    /bin/bash /overrides/discord-events.sh &
+fi
+
 # Start the server in the background
 /home/steam/run_server.sh &
 SERVER_PID=$!
