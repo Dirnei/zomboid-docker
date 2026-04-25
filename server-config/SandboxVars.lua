@@ -56,8 +56,8 @@ SandboxVars = {
     Mortality = 5,              -- 1=Instant 2=0-30sec 3=0-1min 4=0-12hr 5=2-3days 6=1-2weeks
     Reanimate = 3,              -- 1=Instant 2=0-30sec 3=0-1min 4=0-12hr 5=2-3days 6=1-2weeks
     BodyRemoval = 5,            -- 0=Never 1=1day 2=2days 3=3days 4=5days 5=7days
-    Infection = 2,              -- 1=Normal 2=Normal (wound infection, not zombie)
-    InjurySeverity = 3,         -- 1=Low 2=Normal 3=Normal
+    Infection = 1,              -- 1=None 2=Normal (wound infection from scratches/lacerations)
+    InjurySeverity = 1,         -- 1=Low 2=Normal 3=Normal
 
     -- ── Zombie Population Over Time ──
     ZombieRespawn = 0,             -- 0 = disabled
