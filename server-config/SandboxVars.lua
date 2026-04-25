@@ -23,7 +23,7 @@ SandboxVars = {
     OtherLoot = 4,
     CannedFoodLoot = 4,
     LiteratureLoot = 4,
-    MedicalLoot = 4,
+    MedicalLoot = 5,
     SurvivalGearsLoot = 3,
     MechanicsLoot = 3,
 
@@ -44,9 +44,9 @@ SandboxVars = {
     ZombieToughness = 3,        -- 1=Tough 2=Normal 3=Fragile
     ZombieCognition = 3,        -- 1=Navigate+Doors 2=Navigate 3=Basic (dumber zombies)
     ZombieMemory = 3,           -- 1=Long 2=Normal 3=Short 4=None
-    ZombieSight = 2,            -- 1=Eagle 2=Normal 3=Poor
-    ZombieHearing = 2,          -- 1=Pinpoint 2=Normal 3=Poor
-    ZombieSmell = 2,            -- 1=Bloodhound 2=Normal 3=Poor
+    ZombieSight = 3,            -- 1=Eagle 2=Normal 3=Poor
+    ZombieHearing = 3,          -- 1=Pinpoint 2=Normal 3=Poor
+    ZombieSmell = 3,            -- 1=Bloodhound 2=Normal 3=Poor
 
     -- ── Infection & Health ──
     -- THIS IS THE BIGGEST NOOB-FRIENDLY CHANGE:
@@ -66,7 +66,7 @@ SandboxVars = {
     RedistributePercent = 0.0,
     RearZoneRespawnOffset = 0,
     FollowSoundDistance = 100,  -- default 100
-    RallyGroupSize = 20,       -- smaller hordes (default 20)
+    RallyGroupSize = 10,       -- smaller hordes
     RallyTravelDistance = 20,
     RallyGroupSeparation = 15,
     RallyGroupRadius = 20,
@@ -97,8 +97,10 @@ SandboxVars = {
     BonusUnhappiness = 3,
     SlowBodyDamage = false,
     AllowMiniBuildings = true,
-    PlayerBuildingHealth = 3,   -- 1=VeryLow to 5=VeryHigh
+    PlayerBuildingHealth = 4,   -- 1=VeryLow to 5=VeryHigh
     ToolDurability = 3,         -- 1=VeryLow to 5=VeryHigh
+    MultiHitZombies = true,     -- melee swings hit multiple zombies
+    RearVulnerability = true,   -- zombies take more damage from behind
 
     -- ── Fire ──
     FireSpread = true,
