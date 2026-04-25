@@ -14,6 +14,9 @@ services:
       - RCON_PASSWORD=${RCON_PASSWORD}
       - RCON_PORT=${RCON_PORT}
       - TZ=${TZ}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_CHANNEL_ID=${DISCORD_CHANNEL_ID}
+    entrypoint: ["/bin/bash", "/overrides/entrypoint.sh"]
     ports:
       - "${GAME_PORT}:16261/udp"
       - "${DIRECT_PORT}:16262/udp"
@@ -22,25 +25,10 @@ services:
       - server-data:/home/steam/ZomboidDedicatedServer
       - server-saves:/home/steam/Zomboid
       - ./server-config/SandboxVars.lua:/home/steam/Zomboid/Server/${SERVER_NAME}_SandboxVars.lua:ro
-      - ./server-config/${SERVER_NAME}.ini:/home/steam/Zomboid/Server/${SERVER_NAME}.ini
+      - ./server-config/entrypoint.sh:/overrides/entrypoint.sh:ro
+      - ./server-config/overrides.ini:/overrides/overrides.ini:ro
     stdin_open: true
     tty: true
-
-  ini-patcher:
-    image: bash:latest
-    container_name: zomboid-ini-patcher
-    restart: unless-stopped
-    environment:
-      - SERVER_NAME=${SERVER_NAME}
-      - SERVER_PASSWORD=${SERVER_PASSWORD}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - RCON_PASSWORD=${RCON_PASSWORD}
-      - MAX_PLAYERS=${MAX_PLAYERS}
-    volumes:
-      - ./server-config/${SERVER_NAME}.ini:/home/steam/Zomboid/Server/${SERVER_NAME}.ini
-      - ./server-config/servertest.ini:/overrides/servertest.ini:ro
-      - ./server-config/patch-ini.sh:/overrides/patch-ini.sh:ro
-    command: ["bash", "/overrides/patch-ini.sh"]
 
   backup:
     image: alpine:latest
