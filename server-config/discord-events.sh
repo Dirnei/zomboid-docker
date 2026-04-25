@@ -36,8 +36,6 @@ create_status_msg() {
     msg_id=$(echo "$response" | grep -oP '"id"\s*:\s*"\K[0-9]+' | head -1)
     echo "$msg_id" > "$STATUS_MSG_FILE"
     echo "discord-events: status message id=${msg_id}"
-    curl -s -X PUT "https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/pins/${msg_id}" \
-        -H "$AUTH_HEADER" > /dev/null 2>&1
 }
 
 update_player_list() {
@@ -61,7 +59,7 @@ add_player() {
 }
 
 remove_player() {
-    grep -vxF "$1" "$PLAYER_FILE" > "${PLAYER_FILE}.tmp" && mv "${PLAYER_FILE}.tmp" "$PLAYER_FILE"
+    sed -i "/^${1}$/d" "$PLAYER_FILE"
     update_player_list
 }
 
