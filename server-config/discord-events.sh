@@ -1,15 +1,23 @@
 #!/bin/bash
 # Watches PZ server console log and posts events to Discord via bot API.
 # Also maintains a live player list message.
+# Handles three restart scenarios:
+#   1. Full stack restart  — waits for fresh log, reads from start
+#   2. Discord-only restart — finds active log, follows new lines only
+#   3. Server-only restart  — detects new log file, switches automatically
 
 LOG_DIR="/home/steam/Zomboid/Logs"
 DISCORD_API="https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages"
 AUTH_HEADER="Authorization: Bot ${DISCORD_TOKEN}"
 PLAYER_FILE="/tmp/online_players.txt"
 STATUS_MSG_FILE="/tmp/status_msg_id.txt"
+SERVER_FIFO="/tmp/server_log_fifo"
+USER_FIFO="/tmp/user_log_fifo"
 
 > "$PLAYER_FILE"
 > "$STATUS_MSG_FILE"
+rm -f "$SERVER_FIFO" "$USER_FIFO"
+mkfifo "$SERVER_FIFO" "$USER_FIFO"
 
 send_discord() {
     curl -s -X POST "$DISCORD_API" \
@@ -70,46 +78,79 @@ remove_player() {
     update_player_list
 }
 
+# Manages tail for a log file pattern, writes lines to a FIFO.
+# Auto-detects new log files (server restart) and switches to them.
+# On first run: finds active log (discord restart) or waits for fresh one (full restart).
+manage_tail() {
+    local pattern="$1" fifo="$2" label="$3"
+    exec 3>"$fifo"  # hold FIFO open so readers never get EOF between switches
+    local first_run=true
+
+    while true; do
+        local log_file="" tail_start=""
+
+        if $first_run; then
+            # Check for an actively-written log (discord-only restart)
+            log_file=$(find "${LOG_DIR}" -name "$pattern" -mmin -5 2>/dev/null | sort -r | head -1)
+            if [ -n "$log_file" ]; then
+                tail_start="-n 0"
+                echo "discord-events: [${label}] found active ${log_file} (new lines only)"
+            else
+                # Wait for a fresh log (full stack restart)
+                touch /tmp/discord-start-marker
+                echo "discord-events: [${label}] waiting for fresh log..."
+                while true; do
+                    log_file=$(find "${LOG_DIR}" -name "$pattern" -newer /tmp/discord-start-marker 2>/dev/null | head -1)
+                    [ -n "$log_file" ] && break
+                    sleep 5
+                done
+                tail_start="-n +1"
+                echo "discord-events: [${label}] found fresh ${log_file} (from start)"
+            fi
+            first_run=false
+        else
+            # Server restarted — wait for a newer log than the one we were watching
+            echo "discord-events: [${label}] waiting for newer log..."
+            while true; do
+                log_file=$(find "${LOG_DIR}" -name "$pattern" -newer "$prev_log" 2>/dev/null | head -1)
+                [ -n "$log_file" ] && break
+                sleep 5
+            done
+            > "$PLAYER_FILE"
+            update_player_list
+            tail_start="-n +1"
+            echo "discord-events: [${label}] switching to ${log_file} (from start)"
+        fi
+
+        local prev_log="$log_file"
+
+        tail $tail_start -F "$log_file" >"$fifo" 2>/dev/null &
+        local tail_pid=$!
+
+        # Poll for a newer log file (server restart detection)
+        while kill -0 $tail_pid 2>/dev/null; do
+            sleep 30
+            local newer
+            newer=$(find "${LOG_DIR}" -name "$pattern" -newer "$log_file" 2>/dev/null | head -1)
+            if [ -n "$newer" ]; then
+                echo "discord-events: [${label}] detected newer log ${newer}"
+                kill $tail_pid 2>/dev/null
+                wait $tail_pid 2>/dev/null
+                break
+            fi
+        done
+    done
+}
+
 trap 'send_discord ":octagonal_sign: **Server wird heruntergefahren...**"; kill $(jobs -p) 2>/dev/null; exit 0' SIGTERM SIGINT
 
 init_status_msg
 
-# Find a log file: first check for an active one (discord-only restart),
-# then fall back to waiting for a fresh one (full stack restart).
-# Returns: sets LOG_RESULT and TAIL_MODE ("new" or "existing")
-find_log() {
-    local pattern="$1"
-    local active
-    active=$(find "${LOG_DIR}" -name "$pattern" -mmin -5 2>/dev/null | sort -r | head -1)
-    if [ -n "$active" ]; then
-        LOG_RESULT="$active"
-        TAIL_MODE="existing"
-        return
-    fi
-    touch /tmp/discord-start-marker
-    while true; do
-        local fresh
-        fresh=$(find "${LOG_DIR}" -name "$pattern" -newer /tmp/discord-start-marker 2>/dev/null | head -1)
-        if [ -n "$fresh" ]; then
-            LOG_RESULT="$fresh"
-            TAIL_MODE="new"
-            return
-        fi
-        sleep 5
-    done
-}
+# Start tail managers (background)
+manage_tail "*_DebugLog-server.txt" "$SERVER_FIFO" "server" &
+manage_tail "*_user.txt" "$USER_FIFO" "user" &
 
-echo "discord-events: looking for server log..."
-find_log "*_DebugLog-server.txt"
-LOG_FILE="$LOG_RESULT"
-if [ "$TAIL_MODE" = "existing" ]; then
-    echo "discord-events: found active log ${LOG_FILE} (following new lines only)"
-    TAIL_START="-n 0"
-else
-    echo "discord-events: found fresh log ${LOG_FILE} (reading from start)"
-    TAIL_START="-n +1"
-fi
-
+# Process server events
 while read -r line; do
     case "$line" in
         *"SERVER STARTED"*)
@@ -123,23 +164,15 @@ while read -r line; do
             send_discord ":red_circle: **${player:-Ein Spieler}** hat den Server verlassen"
             [ -n "$player" ] && remove_player "$player" ;;
     esac
-done < <(tail $TAIL_START -F "$LOG_FILE" 2>/dev/null) &
+done < "$SERVER_FIFO" &
 
-echo "discord-events: looking for user log..."
-find_log "*_user.txt"
-USER_LOG="$LOG_RESULT"
-if [ "$TAIL_MODE" = "existing" ]; then
-    echo "discord-events: found active user log ${USER_LOG} (following new lines only)"
-    TAIL_START="-n 0"
-else
-    echo "discord-events: found fresh user log ${USER_LOG} (reading from start)"
-    TAIL_START="-n +1"
-fi
-
+# Process user events (deaths)
 while read -r line; do
     case "$line" in
         *" died at "*)
             player=$(echo "$line" | grep -oP 'user \K\S+(?= died at)')
             send_discord ":skull: **${player:-Ein Spieler}** ist gestorben" ;;
     esac
-done < <(tail $TAIL_START -F "$USER_LOG" 2>/dev/null)
+done < "$USER_FIFO" &
+
+wait
