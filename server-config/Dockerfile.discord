@@ -1,0 +1,5 @@
+FROM alpine:latest
+RUN apk add --no-cache bash curl grep sed coreutils
+COPY discord-events.sh /app/discord-events.sh
+RUN chmod +x /app/discord-events.sh
+ENTRYPOINT ["/bin/bash", "/app/discord-events.sh"]

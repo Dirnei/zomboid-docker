@@ -16,7 +16,6 @@ services:
       - TZ=${TZ}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - DISCORD_CHANNEL_ID=${DISCORD_CHANNEL_ID}
-      - DISCORD_STATUS_MSG_ID=${DISCORD_STATUS_MSG_ID}
     entrypoint: ["/bin/bash", "/overrides/entrypoint.sh"]
     ports:
       - "${GAME_PORT}:16261/udp"
@@ -28,7 +27,6 @@ services:
       - ./server-config/SandboxVars.lua:/home/steam/Zomboid/Server/${SERVER_NAME}_SandboxVars.lua:ro
       - ./server-config/entrypoint.sh:/overrides/entrypoint.sh:ro
       - ./server-config/overrides.ini:/overrides/overrides.ini:ro
-      - ./server-config/discord-events.sh:/overrides/discord-events.sh:ro
     stdin_open: true
     tty: true
 
@@ -54,9 +52,72 @@ services:
         echo "Backup sidecar started — schedule: $${BACKUP_CRON}, retention: $${BACKUP_RETENTION_DAYS} days"
         crond -f -l 2
 
+  discord:
+    build:
+      context: ./server-config
+      dockerfile: Dockerfile.discord
+    container_name: zomboid-discord
+    restart: unless-stopped
+    depends_on:
+      - zomboid
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_CHANNEL_ID=${DISCORD_CHANNEL_ID}
+      - DISCORD_STATUS_MSG_ID=${DISCORD_STATUS_MSG_ID}
+      - TZ=${TZ}
+    volumes:
+      - server-saves:/home/steam/Zomboid:ro
+
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: zomboid-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    networks:
+      lksn: {}
+
+  promtail:
+    image: grafana/promtail:3.4.2
+    container_name: zomboid-promtail
+    restart: unless-stopped
+    depends_on:
+      - zomboid
+      - loki
+    volumes:
+      - server-saves:/home/steam/Zomboid:ro
+      - ./server-config/promtail.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      lksn: {}
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: zomboid-grafana
+    restart: unless-stopped
+    depends_on:
+      - loki
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - TZ=${TZ}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./server-config/grafana-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
+    networks:
+      lksn: {}
+
+networks:
+  lksn:
+    external:
+      name: lksn
+
 volumes:
   server-data:
   server-saves:
+  loki-data:
+  grafana-data:
   backups:
     driver: local
     driver_opts:

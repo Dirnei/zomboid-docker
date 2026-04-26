@@ -1,12 +1,6 @@
 #!/bin/bash
 # Wrapper entrypoint: patches .ini overrides, then starts the server.
 
-# Install curl if missing (needed for Discord event notifications)
-if ! command -v curl &> /dev/null; then
-    echo "entrypoint: installing curl..."
-    apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1
-fi
-
 SERVER_INI="/home/steam/Zomboid/Server/${SERVER_NAME}.ini"
 OVERRIDES="/overrides/overrides.ini"
 
@@ -47,11 +41,6 @@ patch_key() {
 
 # If .ini already exists from a previous run, patch before server starts
 patch_ini
-
-# Start Discord event watcher in the background
-if [ -n "$DISCORD_TOKEN" ] && [ -n "$DISCORD_CHANNEL_ID" ]; then
-    /bin/bash /overrides/discord-events.sh &
-fi
 
 # Start the server in the background, watch for ready message
 /home/steam/run_server.sh &
