@@ -76,7 +76,7 @@ SandboxVars = {
 
     -- ── XP & Skills ──
     -- Faster leveling so noobs feel progress
-    XPMultiplier = 3.0,
+    XPMultiplier = 8.0,
     XPMultiplierAffectsQuest = true,
     StatsDecrease = 4,          -- 1=VeryFast to 5=VerySlow (4=Slow)
 
