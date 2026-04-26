@@ -39,6 +39,33 @@ patch_key() {
     fi
 }
 
+# Parse mods.txt into MOD_IDS and MOD_WORKSHOP_IDS
+MODS_FILE="/overrides/mods.txt"
+if [ -f "$MODS_FILE" ]; then
+    workshop_ids=""
+    mod_ids=""
+    while IFS= read -r line; do
+        [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+        # Extract workshop ID from URL or bare number
+        if [[ "$line" =~ id=([0-9]+) ]]; then
+            wid="${BASH_REMATCH[1]}"
+        else
+            wid=$(echo "$line" | awk '{print $1}')
+        fi
+        mid=$(echo "$line" | awk '{print $2}')
+        [ -z "$wid" ] && continue
+        workshop_ids="${workshop_ids:+${workshop_ids};}${wid}"
+        [ -n "$mid" ] && mod_ids="${mod_ids:+${mod_ids};}${mid}"
+    done < "$MODS_FILE"
+    if [ -n "$workshop_ids" ]; then
+        export MOD_WORKSHOP_IDS="$workshop_ids"
+        export MOD_IDS="$mod_ids"
+        echo "entrypoint: loaded mods from mods.txt"
+        echo "  MOD_WORKSHOP_IDS=${MOD_WORKSHOP_IDS}"
+        echo "  MOD_IDS=${MOD_IDS}"
+    fi
+fi
+
 # If .ini already exists from a previous run, patch before server starts
 patch_ini
 
