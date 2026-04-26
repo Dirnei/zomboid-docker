@@ -72,25 +72,23 @@ remove_player() {
 
 trap 'send_discord ":octagonal_sign: **Server wird heruntergefahren...**"; kill $(jobs -p) 2>/dev/null; exit 0' SIGTERM SIGINT
 
-send_discord ":hourglass: **Server startet...**"
+init_status_msg
 
-# Clean old logs so tail only picks up the fresh one
-rm -f "${LOG_DIR}"/*_DebugLog-server.txt 2>/dev/null
+# Mark startup time so we only tail log files created after this point
+touch /tmp/discord-start-marker
 
-echo "discord-events: waiting for fresh log..."
-while ! ls "${LOG_DIR}"/*_DebugLog-server.txt &>/dev/null; do
+echo "discord-events: waiting for fresh server log..."
+while true; do
+    LOG_FILE=$(find "${LOG_DIR}" -name "*_DebugLog-server.txt" -newer /tmp/discord-start-marker 2>/dev/null | head -1)
+    [ -n "$LOG_FILE" ] && break
     sleep 5
 done
-
-LOG_FILE=$(ls -t "${LOG_DIR}"/*_DebugLog-server.txt | head -1)
 echo "discord-events: watching ${LOG_FILE}..."
 
-# tail -n +1 reads existing content first, then -F follows new lines
 while read -r line; do
     case "$line" in
         *"SERVER STARTED"*)
-            send_discord ":white_check_mark: **Server ist online — bereit zum Beitreten!**"
-            init_status_msg ;;
+            send_discord ":white_check_mark: **Server ist online — bereit zum Beitreten!**" ;;
         *"fully-connected"*)
             player=$(echo "$line" | grep -oP 'username="\K[^"]+')
             send_discord ":green_circle: **${player:-Ein Spieler}** hat den Server betreten"
@@ -102,15 +100,12 @@ while read -r line; do
     esac
 done < <(tail -n +1 -F "$LOG_FILE" 2>/dev/null) &
 
-# Watch user log for deaths
-rm -f "${LOG_DIR}"/*_user.txt 2>/dev/null
-
-echo "discord-events: waiting for user log..."
-while ! ls "${LOG_DIR}"/*_user.txt &>/dev/null; do
+echo "discord-events: waiting for fresh user log..."
+while true; do
+    USER_LOG=$(find "${LOG_DIR}" -name "*_user.txt" -newer /tmp/discord-start-marker 2>/dev/null | head -1)
+    [ -n "$USER_LOG" ] && break
     sleep 5
 done
-
-USER_LOG=$(ls -t "${LOG_DIR}"/*_user.txt | head -1)
 echo "discord-events: watching ${USER_LOG}..."
 
 while read -r line; do
