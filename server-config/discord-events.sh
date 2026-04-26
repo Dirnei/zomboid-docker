@@ -74,16 +74,41 @@ trap 'send_discord ":octagonal_sign: **Server wird heruntergefahren...**"; kill 
 
 init_status_msg
 
-# Mark startup time so we only tail log files created after this point
-touch /tmp/discord-start-marker
+# Find a log file: first check for an active one (discord-only restart),
+# then fall back to waiting for a fresh one (full stack restart).
+# Returns: sets LOG_RESULT and TAIL_MODE ("new" or "existing")
+find_log() {
+    local pattern="$1"
+    local active
+    active=$(find "${LOG_DIR}" -name "$pattern" -mmin -5 2>/dev/null | sort -r | head -1)
+    if [ -n "$active" ]; then
+        LOG_RESULT="$active"
+        TAIL_MODE="existing"
+        return
+    fi
+    touch /tmp/discord-start-marker
+    while true; do
+        local fresh
+        fresh=$(find "${LOG_DIR}" -name "$pattern" -newer /tmp/discord-start-marker 2>/dev/null | head -1)
+        if [ -n "$fresh" ]; then
+            LOG_RESULT="$fresh"
+            TAIL_MODE="new"
+            return
+        fi
+        sleep 5
+    done
+}
 
-echo "discord-events: waiting for fresh server log..."
-while true; do
-    LOG_FILE=$(find "${LOG_DIR}" -name "*_DebugLog-server.txt" -newer /tmp/discord-start-marker 2>/dev/null | head -1)
-    [ -n "$LOG_FILE" ] && break
-    sleep 5
-done
-echo "discord-events: watching ${LOG_FILE}..."
+echo "discord-events: looking for server log..."
+find_log "*_DebugLog-server.txt"
+LOG_FILE="$LOG_RESULT"
+if [ "$TAIL_MODE" = "existing" ]; then
+    echo "discord-events: found active log ${LOG_FILE} (following new lines only)"
+    TAIL_START="-n 0"
+else
+    echo "discord-events: found fresh log ${LOG_FILE} (reading from start)"
+    TAIL_START="-n +1"
+fi
 
 while read -r line; do
     case "$line" in
@@ -98,15 +123,18 @@ while read -r line; do
             send_discord ":red_circle: **${player:-Ein Spieler}** hat den Server verlassen"
             [ -n "$player" ] && remove_player "$player" ;;
     esac
-done < <(tail -n +1 -F "$LOG_FILE" 2>/dev/null) &
+done < <(tail $TAIL_START -F "$LOG_FILE" 2>/dev/null) &
 
-echo "discord-events: waiting for fresh user log..."
-while true; do
-    USER_LOG=$(find "${LOG_DIR}" -name "*_user.txt" -newer /tmp/discord-start-marker 2>/dev/null | head -1)
-    [ -n "$USER_LOG" ] && break
-    sleep 5
-done
-echo "discord-events: watching ${USER_LOG}..."
+echo "discord-events: looking for user log..."
+find_log "*_user.txt"
+USER_LOG="$LOG_RESULT"
+if [ "$TAIL_MODE" = "existing" ]; then
+    echo "discord-events: found active user log ${USER_LOG} (following new lines only)"
+    TAIL_START="-n 0"
+else
+    echo "discord-events: found fresh user log ${USER_LOG} (reading from start)"
+    TAIL_START="-n +1"
+fi
 
 while read -r line; do
     case "$line" in
@@ -114,4 +142,4 @@ while read -r line; do
             player=$(echo "$line" | grep -oP 'user \K\S+(?= died at)')
             send_discord ":skull: **${player:-Ein Spieler}** ist gestorben" ;;
     esac
-done < <(tail -n +1 -F "$USER_LOG" 2>/dev/null)
+done < <(tail $TAIL_START -F "$USER_LOG" 2>/dev/null)
