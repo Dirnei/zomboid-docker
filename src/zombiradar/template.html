@@ -333,8 +333,6 @@ function showDetail(wid) {
   const imgSrc = m.image || "";
   const badge = m.status === "approved" ? "approved" : m.status === "rejected" ? "rejected" : "suggested";
   const badgeText = m.status === "approved" ? "Genehmigt" : m.status === "rejected" ? "Abgelehnt" : "Vorschlag";
-  const isAdmin = currentUser.role === "admin";
-
   const votes = m.votes || {};
   const myVote = votes[currentUser.username] || 0;
   const dv = discordVotes[wid] || {};
@@ -360,22 +358,6 @@ function showDetail(wid) {
         ' <span class="score ' + scoreClass + '">' + (score > 0 ? "+" : "") + score + '</span> ' +
         '<button class="btn-down' + downCls + '" onclick="modalVote(' + idx + ',-1)">\u{1F44E}</button>';
     }
-    voteHtml += ' <span class="mod-meta" style="display:inline;margin-left:0.75rem">\u{1F44D} ' + ups + '  \u{1F44E} ' + downs + '</span>';
-  }
-
-  let adminHtml = "";
-  if (isAdmin && m.status === "suggested") {
-    adminHtml = '<button class="btn-approve" onclick="modalStage(' + idx + ',\'approved\')">Genehmigen</button>' +
-      '<button class="btn-reject" onclick="modalStage(' + idx + ',\'rejected\')">Ablehnen</button>';
-  }
-  if (isAdmin && m.status === "approved") {
-    adminHtml = '<button class="btn-reject" onclick="modalStage(' + idx + ',\'rejected\')">Entfernen</button>';
-  }
-  if (isAdmin && m.status === "rejected") {
-    adminHtml = '<button class="btn-approve" onclick="modalStage(' + idx + ',\'approved\')">Genehmigen</button>';
-  }
-  if (isAdmin) {
-    adminHtml += '<button class="btn-delete" onclick="modalDelete(' + idx + ')">\u{1F5D1} Löschen</button>';
   }
 
   const root = document.getElementById("modal-root");
@@ -390,7 +372,6 @@ function showDetail(wid) {
         '<div class="modal-desc">' + desc.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>") + '</div>' +
         '<div class="modal-actions">' +
           '<a href="' + url + '" target="_blank"><button class="btn-steam">Auf Steam ansehen</button></a>' +
-          adminHtml +
         '</div>' +
       '</div>' +
     '</div></div>';
@@ -411,18 +392,6 @@ async function modalVote(idx, value) {
   if (mods) { currentMods = mods; renderMods(mods); showDetail(mods[idx].workshop_id); }
 }
 
-async function modalStage(idx, status) {
-  await api("POST", "/api/mods/" + idx + "/stage", { status: status });
-  const mods = await api("GET", "/api/mods");
-  if (mods) { currentMods = mods; renderMods(mods); if (mods[idx]) showDetail(mods[idx].workshop_id); else closeDetail(); }
-}
-
-async function modalDelete(idx) {
-  if (!confirm("Eintrag endgültig löschen?")) return;
-  await api("POST", "/api/mods/" + idx + "/stage", { status: "deleted" });
-  closeDetail();
-  render();
-}
 
 function closeDetail() {
   document.getElementById("modal-root").innerHTML = "";
