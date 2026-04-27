@@ -143,8 +143,16 @@ def post_mod_to_discord(state, mod, action="suggested"):
         return
     title = mod.get("title") or mod["workshop_id"]
     url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={mod['workshop_id']}"
-    vote_count = len(mod.get("votes", []))
-    voters = ", ".join(mod.get("votes", [])) if mod.get("votes") else "keine"
+    votes = mod.get("votes", {})
+    if isinstance(votes, dict):
+        ups = sum(1 for v in votes.values() if v > 0)
+        downs = sum(1 for v in votes.values() if v < 0)
+        score = ups - downs
+        vote_count = f"+{score}" if score > 0 else str(score)
+        voters = f"\U0001F44D {ups} \U0001F44E {downs}"
+    else:
+        vote_count = len(votes)
+        voters = ", ".join(votes) if votes else "keine"
 
     messages = {
         "suggested": (
@@ -283,7 +291,18 @@ HTML = """<!DOCTYPE html>
   .mod-title a:hover { text-decoration: underline; }
   .mod-meta { color: #888; font-size: 0.85rem; margin-top: 0.25rem; }
   .mod-actions { display: flex; gap: 0.5rem; flex-shrink: 0; align-items: center; }
-  .votes { color: #4caf50; font-weight: 500; min-width: 2rem; text-align: center; }
+  .vote-box { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; min-width: 3rem; }
+  .score { font-weight: 700; font-size: 1.1rem; }
+  .score-pos { color: #4caf50; }
+  .score-neg { color: #e94560; }
+  .score-zero { color: #888; }
+  .btn-up, .btn-down { background: #0f3460; border: 1px solid #333; color: #888; padding: 0.2rem 0.5rem;
+                        font-size: 1rem; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+  .btn-up:hover { border-color: #4caf50; color: #4caf50; }
+  .btn-down:hover { border-color: #e94560; color: #e94560; }
+  .btn-up.active { background: #1a3a1a; border-color: #4caf50; color: #4caf50; }
+  .btn-down.active { background: #3a1a1a; border-color: #e94560; color: #e94560; }
+  .btn-up:disabled, .btn-down:disabled { opacity: 0.5; cursor: default; }
   .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.75rem;
            font-weight: 600; text-transform: uppercase; }
   .badge-suggested { background: #0f3460; color: #5ba4e6; }
@@ -407,47 +426,55 @@ async function render() {
 function renderModList(list, allMods, isAdmin) {
   return list.map(m => {
     const idx = allMods.indexOf(m);
-    const hasVotedWeb = m.votes && m.votes.includes(currentUser.username);
+    const votes = m.votes || {};
+    const myVote = votes[currentUser.username] || 0;
     const hasVotedDiscord = m.voted_on_discord;
-    const hasVoted = hasVotedWeb || hasVotedDiscord;
-    const webVotes = (m.votes || []).length;
     const discordVotes = m.discord_vote_count || 0;
-    const totalVotes = webVotes + discordVotes;
-    const voters = (m.votes || []).join(", ") || "keine";
+    const ups = Object.values(votes).filter(v => v > 0).length + discordVotes;
+    const downs = Object.values(votes).filter(v => v < 0).length;
+    const score = ups - downs;
     const url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + m.workshop_id;
     const title = m.title || m.workshop_id;
     const badge = m.status === "approved" ? "approved" : m.status === "rejected" ? "rejected" : "suggested";
     const badgeText = m.status === "approved" ? "Genehmigt" : m.status === "rejected" ? "Abgelehnt" : "Vorschlag";
 
-    let actions = "";
+    let voteButtons = "";
     if (m.status === "suggested") {
       if (hasVotedDiscord) {
-        actions += '<button class="btn-vote btn-sm voted" disabled title="Bereits auf Discord abgestimmt">\\u{1F44D} Discord</button>';
+        voteButtons = '<button class="btn-up btn-sm active" disabled title="Auf Discord abgestimmt">\\u{1F44D}</button>' +
+          '<button class="btn-down btn-sm" disabled>\\u{1F44E}</button>';
       } else {
-        actions += '<button class="btn-vote btn-sm ' + (hasVotedWeb ? "voted" : "") + '" onclick="vote(' + idx + ')">' + (hasVotedWeb ? "\\u{1F44D}" : "\\u{1F44E}") + '</button>';
+        const upActive = myVote === 1 ? " active" : "";
+        const downActive = myVote === -1 ? " active" : "";
+        voteButtons = '<button class="btn-up btn-sm' + upActive + '" onclick="vote(' + idx + ',1)">\\u{1F44D}</button>' +
+          '<button class="btn-down btn-sm' + downActive + '" onclick="vote(' + idx + ',-1)">\\u{1F44E}</button>';
       }
-      if (isAdmin) {
-        actions += '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\\'approved\\')">Genehmigen</button>';
-        actions += '<button class="btn-reject btn-sm" onclick="stage(' + idx + ',\\'rejected\\')">Ablehnen</button>';
-      }
+    }
+
+    let adminButtons = "";
+    if (m.status === "suggested" && isAdmin) {
+      adminButtons = '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\\'approved\\')">Genehmigen</button>' +
+        '<button class="btn-reject btn-sm" onclick="stage(' + idx + ',\\'rejected\\')">Ablehnen</button>';
     }
     if (isAdmin && m.status === "approved") {
-      actions += '<button class="btn-reject btn-sm" onclick="stage(' + idx + ',\\'rejected\\')">Entfernen</button>';
+      adminButtons = '<button class="btn-reject btn-sm" onclick="stage(' + idx + ',\\'rejected\\')">Entfernen</button>';
     }
     if (isAdmin && m.status === "rejected") {
-      actions += '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\\'approved\\')">Genehmigen</button>';
+      adminButtons = '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\\'approved\\')">Genehmigen</button>';
     }
 
-    const voteDetail = discordVotes ? '(Web: ' + webVotes + ' + Discord: ' + discordVotes + ')' : voters;
+    const scoreClass = score > 0 ? "score-pos" : score < 0 ? "score-neg" : "score-zero";
+    const detail = '\\u{1F44D} ' + ups + '  \\u{1F44E} ' + downs;
 
     return '<div class="mod-item" data-wid="' + m.workshop_id + '">' +
-      '<div class="votes" title="' + voteDetail + '">' + totalVotes + '</div>' +
+      '<div class="vote-box">' + voteButtons +
+        '<div class="score ' + scoreClass + '" title="' + detail + '">' + (score > 0 ? "+" : "") + score + '</div></div>' +
       '<div class="mod-info">' +
         '<div class="mod-title"><a href="' + url + '" target="_blank" class="mod-title-text">' + title + '</a> ' +
           '<span class="badge badge-' + badge + '">' + badgeText + '</span></div>' +
-        '<div class="mod-meta">von ' + (m.suggested_by || "?") + ' · ' + voteDetail + '</div>' +
+        '<div class="mod-meta">von ' + (m.suggested_by || "?") + ' · ' + detail + '</div>' +
       '</div>' +
-      '<div class="mod-actions">' + actions + '</div></div>';
+      '<div class="mod-actions">' + adminButtons + '</div></div>';
   }).join("");
 }
 
@@ -466,8 +493,8 @@ async function suggest() {
   setTimeout(() => { st.className = "status"; }, 3000);
 }
 
-async function vote(idx) {
-  await api("POST", "/api/mods/" + idx + "/vote");
+async function vote(idx, value) {
+  await api("POST", "/api/mods/" + idx + "/vote", { value: value });
   render();
 }
 
@@ -587,6 +614,8 @@ class Handler(BaseHTTPRequestHandler):
             mods = []
             for mod in state["mods"]:
                 m = dict(mod)
+                if isinstance(m.get("votes"), list):
+                    m["votes"] = {u: 1 for u in m["votes"]}
                 discord_voters = all_votes.get(mod.get("discord_msg_id"), set())
                 m["voted_on_discord"] = session["discord_id"] in discord_voters
                 m["discord_vote_count"] = len(discord_voters)
@@ -623,7 +652,7 @@ class Handler(BaseHTTPRequestHandler):
                 "workshop_id": workshop_id,
                 "title": title,
                 "suggested_by": session["username"],
-                "votes": [session["username"]],
+                "votes": {session["username"]: 1},
                 "status": "suggested",
                 "discord_msg_id": None,
             }
@@ -637,16 +666,25 @@ class Handler(BaseHTTPRequestHandler):
             state = load_state()
             if 0 <= idx < len(state["mods"]):
                 mod = state["mods"][idx]
-                all_votes = get_all_discord_votes(state)
-                discord_voters = all_votes.get(mod.get("discord_msg_id"), set())
-                if session["discord_id"] in discord_voters:
-                    self.send_json({"error": "Bereits auf Discord abgestimmt"}, 409)
+                data = self.read_body()
+                value = data.get("value", 0)
+                if value not in (1, -1):
+                    self.send_json({"error": "invalid vote"}, 400)
                     return
+                if value == 1:
+                    all_votes = get_all_discord_votes(state)
+                    discord_voters = all_votes.get(mod.get("discord_msg_id"), set())
+                    if session["discord_id"] in discord_voters:
+                        self.send_json({"error": "Bereits auf Discord abgestimmt"}, 409)
+                        return
                 username = session["username"]
-                if username in mod.get("votes", []):
-                    mod["votes"].remove(username)
+                if not isinstance(mod.get("votes"), dict):
+                    mod["votes"] = {}
+                current = mod["votes"].get(username, 0)
+                if current == value:
+                    del mod["votes"][username]
                 else:
-                    mod.setdefault("votes", []).append(username)
+                    mod["votes"][username] = value
                 save_state(state)
                 post_mod_to_discord(state, mod, "voted")
                 self.send_json({"ok": True})
