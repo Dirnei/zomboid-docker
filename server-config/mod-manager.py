@@ -208,6 +208,8 @@ def fetch_discord_votes(thread_id, msg_id):
         votes[uid] = 1
     for uid in down_ids - both:
         votes[uid] = -1
+    for uid in both:
+        votes[uid] = 0
     return votes
 
 
