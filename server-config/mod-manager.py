@@ -478,16 +478,22 @@ class Handler(BaseHTTPRequestHandler):
             params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             code = params.get("code", [None])[0]
             if not code:
+                print(f"mod-manager: callback — no code in params: {params}")
                 self.send_redirect("/")
                 return
+            print(f"mod-manager: callback — exchanging code...")
             token_data = exchange_code(code)
             if not token_data or "access_token" not in token_data:
+                print(f"mod-manager: callback — token exchange failed: {token_data}")
                 self.send_redirect("/")
                 return
+            print(f"mod-manager: callback — fetching discord user...")
             discord_user = fetch_discord_user(token_data["access_token"])
             if not discord_user or "id" not in discord_user:
+                print(f"mod-manager: callback — user fetch failed: {discord_user}")
                 self.send_redirect("/")
                 return
+            print(f"mod-manager: callback — login success: {discord_user.get('username')} ({discord_user['id']})")
             session_token = make_session(discord_user)
             self.send_redirect("/", headers={
                 "Set-Cookie": f"session={session_token}; Path=/; HttpOnly; SameSite=Lax",
