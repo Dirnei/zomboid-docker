@@ -74,7 +74,11 @@ if [ ! -f "$SERVER_INI" ]; then
         sleep 2
     done
     patch_ini
-    echo "entrypoint: first-boot patching done. Settings apply on next restart."
+    echo "entrypoint: first-boot patching done. Restarting server with patched config..."
+    kill $SERVER_PID
+    wait $SERVER_PID 2>/dev/null
+    /home/steam/run_server.sh &
+    SERVER_PID=$!
 fi
 
 # Keep container alive by waiting on the server process
