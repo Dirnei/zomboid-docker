@@ -469,15 +469,23 @@ function renderModList(list, allMods, isAdmin) {
     }
 
     const scoreClass = score > 0 ? "score-pos" : score < 0 ? "score-neg" : "score-zero";
-    const detail = '\\u{1F44D} ' + ups + '  \\u{1F44E} ' + downs;
+    const upVoters = Object.entries(votes).filter(([k,v]) => v > 0).map(([k]) => k);
+    const downVoters = Object.entries(votes).filter(([k,v]) => v < 0).map(([k]) => k);
+    let voterLine = "";
+    if (upVoters.length) voterLine += '\\u{1F44D} ' + upVoters.join(", ");
+    if (upVoters.length && downVoters.length) voterLine += "  ";
+    if (downVoters.length) voterLine += '\\u{1F44E} ' + downVoters.join(", ");
+    if (discordVotes) voterLine += (voterLine ? "  " : "") + '(+' + discordVotes + ' via Discord)';
+    if (!voterLine) voterLine = "noch keine Stimmen";
 
     return '<div class="mod-item" data-wid="' + m.workshop_id + '">' +
       '<div class="vote-box">' + voteButtons +
-        '<div class="score ' + scoreClass + '" title="' + detail + '">' + (score > 0 ? "+" : "") + score + '</div></div>' +
+        '<div class="score ' + scoreClass + '">' + (score > 0 ? "+" : "") + score + '</div></div>' +
       '<div class="mod-info">' +
         '<div class="mod-title"><a href="' + url + '" target="_blank" class="mod-title-text">' + title + '</a> ' +
           '<span class="badge badge-' + badge + '">' + badgeText + '</span></div>' +
-        '<div class="mod-meta">von ' + (m.suggested_by || "?") + ' · ' + detail + '</div>' +
+        '<div class="mod-meta">Vorgeschlagen von ' + (m.suggested_by || "?") + '</div>' +
+        '<div class="mod-meta">' + voterLine + '</div>' +
       '</div>' +
       '<div class="mod-actions">' + adminButtons + '</div></div>';
   }).join("");
@@ -663,7 +671,7 @@ class Handler(BaseHTTPRequestHandler):
                 "workshop_id": workshop_id,
                 "title": title,
                 "suggested_by": session["username"],
-                "votes": {session["username"]: 1},
+                "votes": {},
                 "status": "suggested",
                 "discord_msg_id": None,
             }
