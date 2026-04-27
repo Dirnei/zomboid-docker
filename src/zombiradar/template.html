@@ -346,10 +346,11 @@ function renderModList(list, allMods, isAdmin) {
     if (upVoters.length) voterLine += '\u{1F44D} ' + upVoters.join(", ");
     if (upVoters.length && downVoters.length) voterLine += "  ";
     if (downVoters.length) voterLine += '\u{1F44E} ' + downVoters.join(", ");
-    if (dUps || dDowns) {
+    const dvUps = (dv.ups || 0), dvDowns = (dv.downs || 0);
+    if (dvUps || dvDowns) {
       let dParts = [];
-      if (dUps) dParts.push('\u{1F44D} ' + dUps);
-      if (dDowns) dParts.push('\u{1F44E} ' + dDowns);
+      if (dvUps) dParts.push('\u{1F44D} ' + dvUps);
+      if (dvDowns) dParts.push('\u{1F44E} ' + dvDowns);
       voterLine += (voterLine ? "  " : "") + '(Discord: ' + dParts.join(' ') + ')';
     }
     if (!voterLine) voterLine = "noch keine Stimmen";
