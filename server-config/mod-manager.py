@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
 from hashlib import sha256
@@ -185,8 +186,35 @@ def fetch_discord_voters(thread_id, msg_id):
     result = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8D")
     if not result or not isinstance(result, list):
         return set()
-    bot_id = DISCORD_CLIENT_ID
-    return {u["id"] for u in result if u["id"] != bot_id}
+    return {u["id"] for u in result if u["id"] != DISCORD_CLIENT_ID}
+
+
+_discord_votes_cache = {}
+_discord_votes_cache_time = 0
+CACHE_TTL = 60
+
+def get_all_discord_votes(state):
+    global _discord_votes_cache, _discord_votes_cache_time
+    if time.time() - _discord_votes_cache_time < CACHE_TTL:
+        return _discord_votes_cache
+    thread_id = state.get("discord_thread_id")
+    if not thread_id:
+        return {}
+    msg_ids = [
+        mod.get("discord_msg_id")
+        for mod in state["mods"]
+        if mod.get("discord_msg_id")
+    ]
+    if not msg_ids:
+        return {}
+    result = {}
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(fetch_discord_voters, thread_id, mid): mid for mid in msg_ids}
+        for future in futures:
+            result[futures[future]] = future.result()
+    _discord_votes_cache = result
+    _discord_votes_cache_time = time.time()
+    return result
 
 
 def make_session(discord_user):
@@ -555,11 +583,11 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return
             state = load_state()
-            thread_id = state.get("discord_thread_id")
+            all_votes = get_all_discord_votes(state)
             mods = []
             for mod in state["mods"]:
                 m = dict(mod)
-                discord_voters = fetch_discord_voters(thread_id, mod.get("discord_msg_id"))
+                discord_voters = all_votes.get(mod.get("discord_msg_id"), set())
                 m["voted_on_discord"] = session["discord_id"] in discord_voters
                 m["discord_vote_count"] = len(discord_voters)
                 mods.append(m)
@@ -609,8 +637,8 @@ class Handler(BaseHTTPRequestHandler):
             state = load_state()
             if 0 <= idx < len(state["mods"]):
                 mod = state["mods"][idx]
-                thread_id = state.get("discord_thread_id")
-                discord_voters = fetch_discord_voters(thread_id, mod.get("discord_msg_id"))
+                all_votes = get_all_discord_votes(state)
+                discord_voters = all_votes.get(mod.get("discord_msg_id"), set())
                 if session["discord_id"] in discord_voters:
                     self.send_json({"error": "Bereits auf Discord abgestimmt"}, 409)
                     return
