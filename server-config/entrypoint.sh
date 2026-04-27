@@ -60,16 +60,20 @@ if [ -f "$MODS_FILE" ]; then
     fi
 fi
 
+# Detect first boot before starting the server
+FIRST_BOOT=false
+[ ! -f "$SERVER_INI" ] && FIRST_BOOT=true
+
 # If .ini already exists from a previous run, patch before server starts
 patch_ini
 
-# Start the server in the background, watch for ready message
+# Start the server
 /home/steam/run_server.sh &
 SERVER_PID=$!
 
-# Wait for .ini to appear (first boot generates it), then patch and let server re-read on next restart
-if [ ! -f "$SERVER_INI" ]; then
-    echo "entrypoint: waiting for first-boot .ini generation..."
+# First boot: wait for .ini to be generated, patch it, restart server
+if $FIRST_BOOT; then
+    echo "entrypoint: first boot — waiting for .ini generation..."
     while [ ! -f "$SERVER_INI" ]; do
         sleep 2
     done
