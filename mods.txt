@@ -1,9 +1,0 @@
-# Steam Workshop Mods — one per line
-# Format: <workshop-url-or-id> <mod-id>
-#
-# The workshop ID is the number from the URL (e.g. ?id=2392709985)
-# The mod ID is listed on the workshop page description (e.g. "Mod ID: tsarslib")
-#
-# Example:
-# https://steamcommunity.com/sharedfiles/filedetails/?id=2392709985 tsarslib
-# 2313387159 Arsenal
