@@ -143,7 +143,7 @@ watch_user_log() {
         while read -r line; do
             case "$line" in
                 *" died at "*)
-                    player=$(echo "$line" | grep -oP 'user \K\S+(?= died at)')
+                    player=$(echo "$line" | grep -oP 'user \K.+(?= died at)')
                     send_discord ":skull: **${player:-Ein Spieler}** ist gestorben" ;;
             esac
         done < <(tail -n +1 -F "$log_file" 2>/dev/null) &
