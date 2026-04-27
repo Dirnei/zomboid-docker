@@ -196,8 +196,40 @@ def fetch_discord_votes(thread_id, msg_id):
     return votes
 
 
+_refresh_lock = threading.Lock()
+_refreshing = False
+
+
+def _refresh_discord_votes(state):
+    global _discord_votes_mem, _discord_votes_mem_time, _refreshing
+    thread_id = state.get("discord_thread_id")
+    if not thread_id:
+        _refreshing = False
+        return
+    msg_ids = [
+        mod.get("discord_msg_id")
+        for mod in state["mods"]
+        if mod.get("discord_msg_id")
+    ]
+    if not msg_ids:
+        _refreshing = False
+        return
+    result = {}
+    for mid in msg_ids:
+        result[mid] = fetch_discord_votes(thread_id, mid)
+    _discord_votes_mem = result
+    _discord_votes_mem_time = time.time()
+    from state import load_state as _load, save_state as _save
+    fresh = _load()
+    fresh["discord_votes_cache"] = {k: dict(v) for k, v in result.items()}
+    fresh["discord_votes_cached_at"] = _discord_votes_mem_time
+    _save(fresh)
+    _refreshing = False
+    print(f"zombiradar: discord votes refreshed ({len(msg_ids)} mods)")
+
+
 def get_all_discord_votes(state, force=False):
-    global _discord_votes_mem, _discord_votes_mem_time
+    global _discord_votes_mem, _discord_votes_mem_time, _refreshing
     now = time.time()
     if not force and now - _discord_votes_mem_time < CACHE_TTL:
         return _discord_votes_mem
@@ -207,23 +239,15 @@ def get_all_discord_votes(state, force=False):
         _discord_votes_mem = {k: {uid: v for uid, v in votes.items()} for k, votes in cached.items()}
         _discord_votes_mem_time = now
         return _discord_votes_mem
-    thread_id = state.get("discord_thread_id")
-    if not thread_id:
-        return {}
-    msg_ids = [
-        mod.get("discord_msg_id")
-        for mod in state["mods"]
-        if mod.get("discord_msg_id")
-    ]
-    if not msg_ids:
-        return {}
-    result = {}
-    for mid in msg_ids:
-        result[mid] = fetch_discord_votes(thread_id, mid)
-    _discord_votes_mem = result
-    _discord_votes_mem_time = now
-    state["discord_votes_cache"] = {k: dict(v) for k, v in result.items()}
-    state["discord_votes_cached_at"] = now
+    if _discord_votes_mem is None:
+        _discord_votes_mem = {k: {uid: v for uid, v in votes.items()} for k, votes in cached.items()}
+    if force:
+        _refresh_discord_votes(state)
+        return _discord_votes_mem
+    if not _refreshing:
+        _refreshing = True
+        threading.Thread(target=_refresh_discord_votes, args=(state,), daemon=True).start()
+    return _discord_votes_mem
     save_state(state)
     return result
 
