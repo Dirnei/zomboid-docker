@@ -24,10 +24,10 @@ _api_blocked_until = 0
 API_COOLDOWN = 600
 
 
-def discord_api(method, path, body=None, token=None, content_type="application/json"):
+def discord_api(method, path, body=None, token=None, content_type="application/json", skip_cooldown=False):
     global _api_last_call, _api_blocked_until
     now = time.time()
-    if now < _api_blocked_until:
+    if not skip_cooldown and now < _api_blocked_until:
         remaining = int(_api_blocked_until - now)
         print(f"zombiradar: discord blocked for {remaining}s, skipping {method} {path}")
         return None
@@ -92,7 +92,7 @@ def exchange_code(code):
 
 
 def fetch_discord_user(access_token):
-    return discord_api("GET", "/users/@me", token=access_token)
+    return discord_api("GET", "/users/@me", token=access_token, skip_cooldown=True)
 
 
 def ensure_discord_thread(state):
