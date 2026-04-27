@@ -22,10 +22,12 @@ def fetch_workshop_info(workshop_id):
             if len(desc) > 1000:
                 desc = desc[:1000] + "..."
             description = desc
+        mod_id_m = re.search(r'Mod\s*ID:\s*(\S+)', html)
         return {
             "title": title_m.group(1).strip() if title_m else None,
             "image": img_m.group(1).strip() if img_m else None,
             "description": description,
+            "mod_id": mod_id_m.group(1).strip() if mod_id_m else None,
         }
     except Exception:
-        return {"title": None, "image": None}
+        return {"title": None, "image": None, "description": None, "mod_id": None}

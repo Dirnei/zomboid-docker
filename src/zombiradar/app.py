@@ -205,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
             for mod in state["mods"]:
                 if mod["workshop_id"] == wid:
                     changed = False
-                    for key in ("title", "image", "description"):
+                    for key in ("title", "image", "description", "mod_id"):
                         if info.get(key) and not mod.get(key):
                             mod[key] = info[key]
                             changed = True
