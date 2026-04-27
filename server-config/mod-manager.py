@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -102,6 +103,10 @@ def exchange_code(code):
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        print(f"mod-manager: oauth token exchange error: {e.code} {body}")
+        return None
     except Exception as e:
         print(f"mod-manager: oauth token exchange error: {e}")
         return None
