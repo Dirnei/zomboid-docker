@@ -145,10 +145,20 @@ async function checkSession() {
 }
 
 function renderLogin() {
+  const params = new URLSearchParams(window.location.search);
+  const error = params.get("error");
+  let errorHtml = "";
+  if (error === "rate_limited") {
+    errorHtml = '<div class="status err" style="display:block;margin-bottom:1rem">Discord drosselt gerade Anfragen. Bitte warte ein paar Minuten und versuche es erneut.</div>';
+  } else if (error === "login_failed") {
+    errorHtml = '<div class="status err" style="display:block;margin-bottom:1rem">Login fehlgeschlagen. Bitte versuche es erneut.</div>';
+  }
+  if (error) window.history.replaceState({}, "", "/");
   document.getElementById("app").innerHTML = `
     <div class="login-card card">
       <img src="/logo.png" class="logo" onerror="this.style.display='none'">
       <h2>ZombiRadar</h2>
+      ${errorHtml}
       <p class="subtitle" style="margin-bottom:1.5rem">Melde dich mit Discord an, um Mods vorzuschlagen und abzustimmen.</p>
       <a href="/api/login" style="text-decoration:none">
         <button class="btn-discord">

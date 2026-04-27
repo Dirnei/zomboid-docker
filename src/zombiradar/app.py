@@ -248,13 +248,13 @@ class Handler(BaseHTTPRequestHandler):
         token_data = exchange_code(code)
         if not token_data or "access_token" not in token_data:
             print(f"zombiradar: callback — token exchange failed: {token_data}")
-            self.send_redirect("/")
+            self.send_redirect("/?error=rate_limited")
             return
         print("zombiradar: callback — fetching discord user...")
         discord_user = fetch_discord_user(token_data["access_token"])
         if not discord_user or "id" not in discord_user:
             print(f"zombiradar: callback — user fetch failed: {discord_user}")
-            self.send_redirect("/")
+            self.send_redirect("/?error=login_failed")
             return
         print(f"zombiradar: callback — login success: {discord_user.get('username')} ({discord_user['id']})")
         session_token = make_session(discord_user)
