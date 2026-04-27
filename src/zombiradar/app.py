@@ -133,6 +133,19 @@ class Handler(BaseHTTPRequestHandler):
                 return
             wid = self.path.split("/")[-1]
             info = fetch_workshop_info(wid)
+            state = load_state()
+            for mod in state["mods"]:
+                if mod["workshop_id"] == wid:
+                    changed = False
+                    if info["title"] and not mod.get("title"):
+                        mod["title"] = info["title"]
+                        changed = True
+                    if info["image"] and not mod.get("image"):
+                        mod["image"] = info["image"]
+                        changed = True
+                    if changed:
+                        save_state(state)
+                    break
             self.send_json({"workshop_id": wid, **info})
 
         else:
