@@ -259,6 +259,7 @@ function renderMods(mods) {
       <div class="header-left" style="display:flex;align-items:center;gap:0.75rem"><img src="/logo.png" class="logo-sm" onerror="this.style.display='none'"><div><h1>ZombiRadar</h1><p class="subtitle">Mods vorschlagen, abstimmen & genehmigen</p></div></div>
       <div class="user-info">${avatarHtml}<strong>${currentUser.username}</strong>
         <div class="nav-links">
+          ${isAdmin ? '<a href="#" onclick="refreshDiscordVotes();return false" title="Discord-Votes neu laden">&#x21bb;</a>' : ''}
           ${isAdmin ? '<a href="#" onclick="showUsers();return false">Benutzer</a>' : ''}
           <a href="/api/logout">Logout</a>
         </div>
@@ -483,6 +484,13 @@ function closeDetail() {
 }
 
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetail(); });
+
+async function refreshDiscordVotes() {
+  discordVotes = {};
+  renderMods(currentMods);
+  const dv = await api("GET", "/api/discord-votes?force=1");
+  if (dv) { discordVotes = dv; renderMods(currentMods); }
+}
 
 async function showUsers() {
   const root = document.getElementById("modal-root");

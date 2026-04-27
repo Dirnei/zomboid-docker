@@ -120,12 +120,14 @@ class Handler(BaseHTTPRequestHandler):
             state = load_state()
             self.send_json(state["mods"])
 
-        elif self.path == "/api/discord-votes":
+        elif self.path.startswith("/api/discord-votes"):
             session = self.require_auth()
             if not session:
                 return
+            params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            force = "1" in params.get("force", []) and session["role"] == "admin"
             state = load_state()
-            all_votes = get_all_discord_votes(state)
+            all_votes = get_all_discord_votes(state, force=force)
             result = {}
             for mod in state["mods"]:
                 msg_id = mod.get("discord_msg_id")

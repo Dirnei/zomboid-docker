@@ -21,4 +21,4 @@ OAUTH_AUTHORIZE_URL = (
     f"&response_type=code&scope=identify"
 )
 
-CACHE_TTL = 60
+CACHE_TTL = 300

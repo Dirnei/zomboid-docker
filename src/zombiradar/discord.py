@@ -15,8 +15,8 @@ from state import save_state
 
 SESSIONS = {}
 
-_discord_votes_cache = {}
-_discord_votes_cache_time = 0
+_discord_votes_mem = {}
+_discord_votes_mem_time = 0
 
 
 def discord_api(method, path, body=None, token=None, content_type="application/json"):
@@ -25,17 +25,27 @@ def discord_api(method, path, body=None, token=None, content_type="application/j
         data = json.dumps(body).encode() if body else None
     else:
         data = urllib.parse.urlencode(body).encode() if body else None
-    req = urllib.request.Request(url, data=data, method=method, headers={
-        "Authorization": f"Bot {DISCORD_TOKEN}" if not token else f"Bearer {token}",
-        "Content-Type": content_type,
-        "User-Agent": "ZombiRadar/1.0",
-    })
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read().decode())
-    except Exception as e:
-        print(f"zombiradar: discord api error: {e}")
-        return None
+    for attempt in range(3):
+        req = urllib.request.Request(url, data=data, method=method, headers={
+            "Authorization": f"Bot {DISCORD_TOKEN}" if not token else f"Bearer {token}",
+            "Content-Type": content_type,
+            "User-Agent": "ZombiRadar/1.0",
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                retry_after = float(json.loads(e.read().decode()).get("retry_after", 1))
+                print(f"zombiradar: rate limited, retrying in {retry_after}s...")
+                time.sleep(retry_after)
+                continue
+            print(f"zombiradar: discord api error: {e}")
+            return None
+        except Exception as e:
+            print(f"zombiradar: discord api error: {e}")
+            return None
+    return None
 
 
 def exchange_code(code):
@@ -177,10 +187,17 @@ def fetch_discord_votes(thread_id, msg_id):
     return votes
 
 
-def get_all_discord_votes(state):
-    global _discord_votes_cache, _discord_votes_cache_time
-    if time.time() - _discord_votes_cache_time < CACHE_TTL:
-        return _discord_votes_cache
+def get_all_discord_votes(state, force=False):
+    global _discord_votes_mem, _discord_votes_mem_time
+    now = time.time()
+    if not force and now - _discord_votes_mem_time < CACHE_TTL:
+        return _discord_votes_mem
+    cached = state.get("discord_votes_cache", {})
+    cached_at = state.get("discord_votes_cached_at", 0)
+    if not force and now - cached_at < CACHE_TTL:
+        _discord_votes_mem = {k: {uid: v for uid, v in votes.items()} for k, votes in cached.items()}
+        _discord_votes_mem_time = now
+        return _discord_votes_mem
     thread_id = state.get("discord_thread_id")
     if not thread_id:
         return {}
@@ -192,12 +209,15 @@ def get_all_discord_votes(state):
     if not msg_ids:
         return {}
     result = {}
-    with ThreadPoolExecutor(max_workers=5) as pool:
+    with ThreadPoolExecutor(max_workers=2) as pool:
         futures = {pool.submit(fetch_discord_votes, thread_id, mid): mid for mid in msg_ids}
         for future in futures:
             result[futures[future]] = future.result()
-    _discord_votes_cache = result
-    _discord_votes_cache_time = time.time()
+    _discord_votes_mem = result
+    _discord_votes_mem_time = now
+    state["discord_votes_cache"] = {k: dict(v) for k, v in result.items()}
+    state["discord_votes_cached_at"] = now
+    save_state(state)
     return result
 
 
