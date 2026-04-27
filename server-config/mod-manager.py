@@ -303,6 +303,8 @@ HTML = """<!DOCTYPE html>
   .btn-up.active { background: #1a3a1a; border-color: #4caf50; color: #4caf50; }
   .btn-down.active { background: #3a1a1a; border-color: #e94560; color: #e94560; }
   .btn-up:disabled, .btn-down:disabled { opacity: 0.5; cursor: default; }
+  .btn-delete { background: none; border: 1px solid #333; color: #666; padding: 0.3rem 0.5rem; }
+  .btn-delete:hover { border-color: #e94560; color: #e94560; }
   .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.75rem;
            font-weight: 600; text-transform: uppercase; }
   .badge-suggested { background: #0f3460; color: #5ba4e6; }
@@ -462,6 +464,9 @@ function renderModList(list, allMods, isAdmin) {
     if (isAdmin && m.status === "rejected") {
       adminButtons = '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\\'approved\\')">Genehmigen</button>';
     }
+    if (isAdmin) {
+      adminButtons += '<button class="btn-delete btn-sm" onclick="deleteMod(' + idx + ')">\\u{1F5D1}</button>';
+    }
 
     const scoreClass = score > 0 ? "score-pos" : score < 0 ? "score-neg" : "score-zero";
     const detail = '\\u{1F44D} ' + ups + '  \\u{1F44E} ' + downs;
@@ -500,6 +505,12 @@ async function vote(idx, value) {
 
 async function stage(idx, status) {
   await api("POST", "/api/mods/" + idx + "/stage", { status: status });
+  render();
+}
+
+async function deleteMod(idx) {
+  if (!confirm("Eintrag endgültig löschen?")) return;
+  await api("POST", "/api/mods/" + idx + "/stage", { status: "deleted" });
   render();
 }
 
@@ -698,16 +709,20 @@ class Handler(BaseHTTPRequestHandler):
             idx = int(self.path.split("/")[3])
             data = self.read_body()
             new_status = data.get("status")
-            if new_status not in ("approved", "rejected"):
+            if new_status not in ("approved", "rejected", "deleted"):
                 self.send_json({"error": "invalid status"}, 400)
                 return
             state = load_state()
             if 0 <= idx < len(state["mods"]):
                 mod = state["mods"][idx]
-                mod["status"] = new_status
+                if new_status == "deleted":
+                    state["mods"].pop(idx)
+                else:
+                    mod["status"] = new_status
                 save_state(state)
                 sync_mods_txt(state)
-                post_mod_to_discord(state, mod, new_status)
+                if new_status != "deleted":
+                    post_mod_to_discord(state, mod, new_status)
                 self.send_json({"ok": True})
             else:
                 self.send_json({"error": "not found"}, 404)
