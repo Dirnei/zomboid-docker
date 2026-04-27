@@ -20,42 +20,46 @@ _discord_votes_mem_time = 0
 
 _api_lock = threading.Lock()
 _api_last_call = 0
-API_MIN_INTERVAL = 0.5
+_api_blocked_until = 0
+API_COOLDOWN = 600
 
 
 def discord_api(method, path, body=None, token=None, content_type="application/json"):
-    global _api_last_call
+    global _api_last_call, _api_blocked_until
+    now = time.time()
+    if now < _api_blocked_until:
+        remaining = int(_api_blocked_until - now)
+        print(f"zombiradar: discord blocked for {remaining}s, skipping {method} {path}")
+        return None
     url = f"https://discord.com/api/v10{path}"
     if content_type == "application/json":
         data = json.dumps(body).encode() if body else None
     else:
         data = urllib.parse.urlencode(body).encode() if body else None
-    for attempt in range(3):
-        with _api_lock:
-            wait = API_MIN_INTERVAL - (time.time() - _api_last_call)
-            if wait > 0:
-                time.sleep(wait)
-            _api_last_call = time.time()
-        req = urllib.request.Request(url, data=data, method=method, headers={
-            "Authorization": f"Bot {DISCORD_TOKEN}" if not token else f"Bearer {token}",
-            "Content-Type": content_type,
-            "User-Agent": "ZombiRadar/1.0",
-        })
-        try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                return json.loads(resp.read().decode())
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                retry_after = float(json.loads(e.read().decode()).get("retry_after", 1))
-                print(f"zombiradar: rate limited, retrying in {retry_after}s...")
-                time.sleep(retry_after)
-                continue
-            print(f"zombiradar: discord api error: {e}")
+    with _api_lock:
+        wait = 0.5 - (time.time() - _api_last_call)
+        if wait > 0:
+            time.sleep(wait)
+        _api_last_call = time.time()
+    req = urllib.request.Request(url, data=data, method=method, headers={
+        "Authorization": f"Bot {DISCORD_TOKEN}" if not token else f"Bearer {token}",
+        "Content-Type": content_type,
+        "User-Agent": "ZombiRadar/1.0",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode()
+            return json.loads(body) if body else None
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            _api_blocked_until = time.time() + API_COOLDOWN
+            print(f"zombiradar: rate limited! blocking all Discord calls for {API_COOLDOWN}s")
             return None
-        except Exception as e:
-            print(f"zombiradar: discord api error: {e}")
-            return None
-    return None
+        print(f"zombiradar: discord api error: {e}")
+        return None
+    except Exception as e:
+        print(f"zombiradar: discord api error: {e}")
+        return None
 
 
 def exchange_code(code):
