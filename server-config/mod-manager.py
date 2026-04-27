@@ -185,8 +185,11 @@ def post_mod_to_discord(state, mod, action="suggested"):
             mod["discord_msg_id"] = result["id"]
             save_state(state)
             if action == "suggested":
-                discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8D/%40me")
-                discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8E/%40me")
+                r1 = discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8D/%40me")
+                print(f"mod-manager: seed 👍: {r1}")
+                time.sleep(0.5)
+                r2 = discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8E/%40me")
+                print(f"mod-manager: seed 👎: {r2}")
 
 
 def fetch_discord_voters(thread_id, msg_id):
