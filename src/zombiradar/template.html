@@ -307,9 +307,23 @@ async function suggest() {
   setTimeout(() => { st.className = "status"; }, 3000);
 }
 
+function applyOptimisticVote(idx, value) {
+  const m = currentMods[idx];
+  if (!m) return;
+  const votes = m.votes || {};
+  const current = votes[currentUser.username] || 0;
+  if (current === value) {
+    delete votes[currentUser.username];
+  } else {
+    votes[currentUser.username] = value;
+  }
+  m.votes = votes;
+  renderMods(currentMods);
+}
+
 async function vote(idx, value) {
-  await api("POST", "/api/mods/" + idx + "/vote", { value: value });
-  render();
+  applyOptimisticVote(idx, value);
+  api("POST", "/api/mods/" + idx + "/vote", { value: value });
 }
 
 async function stage(idx, status) {
@@ -386,10 +400,10 @@ function showDetail(wid) {
   }
 }
 
-async function modalVote(idx, value) {
-  await api("POST", "/api/mods/" + idx + "/vote", { value: value });
-  const mods = await api("GET", "/api/mods");
-  if (mods) { currentMods = mods; renderMods(mods); showDetail(mods[idx].workshop_id); }
+function modalVote(idx, value) {
+  applyOptimisticVote(idx, value);
+  showDetail(currentMods[idx].workshop_id);
+  api("POST", "/api/mods/" + idx + "/vote", { value: value });
 }
 
 
