@@ -231,25 +231,28 @@ def _refresh_discord_votes(state):
 def get_all_discord_votes(state, force=False):
     global _discord_votes_mem, _discord_votes_mem_time, _refreshing
     now = time.time()
+    # 1. Fresh in-memory cache — return immediately
     if not force and now - _discord_votes_mem_time < CACHE_TTL:
         return _discord_votes_mem
+    # 2. Load from state.json cache (stale is fine, better than empty)
     cached = state.get("discord_votes_cache", {})
     cached_at = state.get("discord_votes_cached_at", 0)
+    if not _discord_votes_mem_time and cached:
+        _discord_votes_mem = {k: {uid: v for uid, v in votes.items()} for k, votes in cached.items()}
+    # 3. State.json cache still fresh — use it
     if not force and now - cached_at < CACHE_TTL:
         _discord_votes_mem = {k: {uid: v for uid, v in votes.items()} for k, votes in cached.items()}
         _discord_votes_mem_time = now
         return _discord_votes_mem
-    if _discord_votes_mem is None:
-        _discord_votes_mem = {k: {uid: v for uid, v in votes.items()} for k, votes in cached.items()}
+    # 4. Force refresh — block and fetch
     if force:
         _refresh_discord_votes(state)
         return _discord_votes_mem
+    # 5. Background refresh — return stale data now, update later
     if not _refreshing:
         _refreshing = True
         threading.Thread(target=_refresh_discord_votes, args=(state,), daemon=True).start()
     return _discord_votes_mem
-    save_state(state)
-    return result
 
 
 def make_session(discord_user):
