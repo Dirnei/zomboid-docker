@@ -79,13 +79,31 @@
   .login-card h2 { margin-bottom: 1.5rem; }
   .loading { color: #888; font-style: italic; }
   .discord-icon { width: 20px; height: 20px; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
+                   display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .modal { background: #16213e; border-radius: 12px; max-width: 700px; width: 100%;
+           max-height: 90vh; overflow-y: auto; position: relative; }
+  .modal-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 12px 12px 0 0; }
+  .modal-body { padding: 1.5rem; }
+  .modal-body h2 { color: #e94560; margin-bottom: 0.5rem; }
+  .modal-body .mod-meta { margin-bottom: 0.75rem; }
+  .modal-desc { color: #ccc; line-height: 1.6; white-space: pre-wrap; margin: 1rem 0;
+                max-height: 300px; overflow-y: auto; font-size: 0.9rem; }
+  .modal-actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+  .modal-close { position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(0,0,0,0.5);
+                 color: white; border: none; border-radius: 50%; width: 32px; height: 32px;
+                 font-size: 1.2rem; cursor: pointer; z-index: 1; }
+  .modal-close:hover { background: rgba(0,0,0,0.8); }
+  .btn-steam { background: #171a21; color: #66c0f4; display: inline-flex; align-items: center; gap: 0.5rem; }
 </style>
 </head>
 <body>
 <div class="container" id="app"></div>
+<div id="modal-root"></div>
 
 <script>
 let currentUser = null;
+let currentMods = [];
 
 async function api(method, path, body) {
   const opts = { method, headers: { "Content-Type": "application/json" } };
@@ -127,6 +145,7 @@ async function render() {
   if (!currentUser) { renderLogin(); return; }
   const mods = await api("GET", "/api/mods");
   if (!mods) return;
+  currentMods = mods;
 
   renderMods(mods);
 
@@ -262,9 +281,9 @@ function renderModList(list, allMods, isAdmin) {
     return '<div class="mod-item" data-wid="' + m.workshop_id + '">' +
       '<div class="vote-box">' + voteButtons +
         '<div class="score ' + scoreClass + '">' + (score > 0 ? "+" : "") + score + '</div></div>' +
-      '<a href="' + url + '" target="_blank">' + img + '</a>' +
+      '<a href="#" onclick="showDetail(\'' + m.workshop_id + '\');return false">' + img + '</a>' +
       '<div class="mod-info">' +
-        '<div class="mod-title"><a href="' + url + '" target="_blank" class="mod-title-text">' + title + '</a> ' +
+        '<div class="mod-title"><a href="#" onclick="showDetail(\'' + m.workshop_id + '\');return false" class="mod-title-text">' + title + '</a> ' +
           '<span class="badge badge-' + badge + '">' + badgeText + '</span></div>' +
         '<div class="mod-meta">Vorgeschlagen von ' + (m.suggested_by || "?") + '</div>' +
         '<div class="mod-meta">' + voterLine + '</div>' +
@@ -303,6 +322,47 @@ async function deleteMod(idx) {
   await api("POST", "/api/mods/" + idx + "/stage", { status: "deleted" });
   render();
 }
+
+function showDetail(wid) {
+  const m = currentMods.find(x => x.workshop_id === wid);
+  if (!m) return;
+  const url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + wid;
+  const title = m.title || wid;
+  const desc = m.description || "Keine Beschreibung verfügbar.";
+  const imgSrc = m.image || "";
+  const badge = m.status === "approved" ? "approved" : m.status === "rejected" ? "rejected" : "suggested";
+  const badgeText = m.status === "approved" ? "Genehmigt" : m.status === "rejected" ? "Abgelehnt" : "Vorschlag";
+
+  const root = document.getElementById("modal-root");
+  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
+    '<div class="modal">' +
+      '<button class="modal-close" onclick="closeDetail()">&times;</button>' +
+      (imgSrc ? '<img class="modal-img" src="' + imgSrc + '">' : '') +
+      '<div class="modal-body">' +
+        '<h2>' + title + ' <span class="badge badge-' + badge + '">' + badgeText + '</span></h2>' +
+        '<div class="mod-meta">Vorgeschlagen von ' + (m.suggested_by || "?") + '</div>' +
+        '<div class="modal-desc">' + desc.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>") + '</div>' +
+        '<div class="modal-actions">' +
+          '<a href="' + url + '" target="_blank"><button class="btn-steam">Auf Steam ansehen</button></a>' +
+        '</div>' +
+      '</div>' +
+    '</div></div>';
+
+  if (!m.description) {
+    api("GET", "/api/lookup/" + wid).then(data => {
+      if (data && data.description) {
+        const el = root.querySelector('.modal-desc');
+        if (el) el.innerHTML = data.description.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>");
+      }
+    });
+  }
+}
+
+function closeDetail() {
+  document.getElementById("modal-root").innerHTML = "";
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetail(); });
 
 checkSession();
 </script>
