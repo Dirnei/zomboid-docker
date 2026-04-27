@@ -186,6 +186,7 @@ def post_mod_to_discord(state, mod, action="suggested"):
             save_state(state)
             if action == "suggested":
                 discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8D/%40me")
+                discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8E/%40me")
 
 
 def fetch_discord_voters(thread_id, msg_id):
