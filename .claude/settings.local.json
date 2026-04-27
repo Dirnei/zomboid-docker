@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "PowerShell(docker exec zomboid-server *)"
-    ]
-  }
-}
