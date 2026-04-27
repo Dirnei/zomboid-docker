@@ -175,6 +175,18 @@ def post_mod_to_discord(state, mod, action="suggested"):
         if result and "id" in result:
             mod["discord_msg_id"] = result["id"]
             save_state(state)
+            if action == "suggested":
+                discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8D/%40me")
+
+
+def fetch_discord_voters(thread_id, msg_id):
+    if not thread_id or not msg_id:
+        return set()
+    result = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8D")
+    if not result or not isinstance(result, list):
+        return set()
+    bot_id = DISCORD_CLIENT_ID
+    return {u["id"] for u in result if u["id"] != bot_id}
 
 
 def make_session(discord_user):
@@ -367,8 +379,12 @@ async function render() {
 function renderModList(list, allMods, isAdmin) {
   return list.map(m => {
     const idx = allMods.indexOf(m);
-    const hasVoted = m.votes && m.votes.includes(currentUser.username);
-    const voteCount = (m.votes || []).length;
+    const hasVotedWeb = m.votes && m.votes.includes(currentUser.username);
+    const hasVotedDiscord = m.voted_on_discord;
+    const hasVoted = hasVotedWeb || hasVotedDiscord;
+    const webVotes = (m.votes || []).length;
+    const discordVotes = m.discord_vote_count || 0;
+    const totalVotes = webVotes + discordVotes;
     const voters = (m.votes || []).join(", ") || "keine";
     const url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + m.workshop_id;
     const title = m.title || m.workshop_id;
@@ -377,7 +393,11 @@ function renderModList(list, allMods, isAdmin) {
 
     let actions = "";
     if (m.status === "suggested") {
-      actions += '<button class="btn-vote btn-sm ' + (hasVoted ? "voted" : "") + '" onclick="vote(' + idx + ')">' + (hasVoted ? "Gestimmt" : "Abstimmen") + '</button>';
+      if (hasVotedDiscord) {
+        actions += '<button class="btn-vote btn-sm voted" disabled title="Bereits auf Discord abgestimmt">\\u{1F44D} Discord</button>';
+      } else {
+        actions += '<button class="btn-vote btn-sm ' + (hasVotedWeb ? "voted" : "") + '" onclick="vote(' + idx + ')">' + (hasVotedWeb ? "\\u{1F44D}" : "\\u{1F44E}") + '</button>';
+      }
       if (isAdmin) {
         actions += '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\\'approved\\')">Genehmigen</button>';
         actions += '<button class="btn-reject btn-sm" onclick="stage(' + idx + ',\\'rejected\\')">Ablehnen</button>';
@@ -390,12 +410,14 @@ function renderModList(list, allMods, isAdmin) {
       actions += '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\\'approved\\')">Genehmigen</button>';
     }
 
+    const voteDetail = discordVotes ? '(Web: ' + webVotes + ' + Discord: ' + discordVotes + ')' : voters;
+
     return '<div class="mod-item" data-wid="' + m.workshop_id + '">' +
-      '<div class="votes" title="Stimmen: ' + voters + '">' + voteCount + '</div>' +
+      '<div class="votes" title="' + voteDetail + '">' + totalVotes + '</div>' +
       '<div class="mod-info">' +
         '<div class="mod-title"><a href="' + url + '" target="_blank" class="mod-title-text">' + title + '</a> ' +
           '<span class="badge badge-' + badge + '">' + badgeText + '</span></div>' +
-        '<div class="mod-meta">von ' + (m.suggested_by || "?") + ' · ' + voters + '</div>' +
+        '<div class="mod-meta">von ' + (m.suggested_by || "?") + ' · ' + voteDetail + '</div>' +
       '</div>' +
       '<div class="mod-actions">' + actions + '</div></div>';
   }).join("");
@@ -529,9 +551,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "no session"}, 401)
 
         elif self.path == "/api/mods":
-            if not self.require_auth():
+            session = self.require_auth()
+            if not session:
                 return
-            self.send_json(load_state()["mods"])
+            state = load_state()
+            thread_id = state.get("discord_thread_id")
+            mods = []
+            for mod in state["mods"]:
+                m = dict(mod)
+                discord_voters = fetch_discord_voters(thread_id, mod.get("discord_msg_id"))
+                m["voted_on_discord"] = session["discord_id"] in discord_voters
+                m["discord_vote_count"] = len(discord_voters)
+                mods.append(m)
+            self.send_json(mods)
 
         elif self.path.startswith("/api/lookup/"):
             if not self.require_auth():
@@ -577,6 +609,11 @@ class Handler(BaseHTTPRequestHandler):
             state = load_state()
             if 0 <= idx < len(state["mods"]):
                 mod = state["mods"][idx]
+                thread_id = state.get("discord_thread_id")
+                discord_voters = fetch_discord_voters(thread_id, mod.get("discord_msg_id"))
+                if session["discord_id"] in discord_voters:
+                    self.send_json({"error": "Bereits auf Discord abgestimmt"}, 409)
+                    return
                 username = session["username"]
                 if username in mod.get("votes", []):
                     mod["votes"].remove(username)
