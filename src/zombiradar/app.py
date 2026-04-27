@@ -14,7 +14,7 @@ from state import load_state, save_state, sync_mods_txt
 from steam import fetch_workshop_info
 from discord import (
     discord_api, exchange_code, fetch_discord_user, post_mod_to_discord,
-    get_all_discord_votes, make_session, SESSIONS,
+    get_all_discord_votes, make_session, SESSIONS, discord_user_cache,
 )
 
 HTML = (Path(__file__).parent / "template.html").read_text()
@@ -145,22 +145,39 @@ class Handler(BaseHTTPRequestHandler):
                 return
             state = load_state()
             all_discord = get_all_discord_votes(state)
-            users = []
             suggested_mods = [m for m in state["mods"] if m["status"] == "suggested"]
-            for uid, u in state.get("users", {}).items():
+            known_uids = set(state.get("users", {}).keys())
+            all_discord_uids = set()
+            for dv in all_discord.values():
+                all_discord_uids.update(dv.keys())
+            all_uids = known_uids | all_discord_uids
+            users = []
+            for uid in all_uids:
+                u = state.get("users", {}).get(uid)
+                if u:
+                    username = u["username"]
+                    avatar_url = u.get("avatar_url")
+                    last_login = u.get("last_login", "?")
+                    banned = u.get("banned", False)
+                else:
+                    cached = discord_user_cache.get(uid, {})
+                    username = cached.get("username", f"Discord #{uid[:6]}")
+                    avatar_url = cached.get("avatar_url")
+                    last_login = "nie"
+                    banned = False
                 voted_on = 0
                 for mod in suggested_mods:
-                    web_voted = u["username"] in mod.get("votes", {})
+                    web_voted = username in mod.get("votes", {})
                     dv = all_discord.get(mod.get("discord_msg_id"), {})
                     discord_voted = uid in dv
                     if web_voted or discord_voted:
                         voted_on += 1
                 users.append({
                     "discord_id": uid,
-                    "username": u["username"],
-                    "avatar_url": u.get("avatar_url"),
-                    "last_login": u.get("last_login", "?"),
-                    "banned": u.get("banned", False),
+                    "username": username,
+                    "avatar_url": avatar_url,
+                    "last_login": last_login,
+                    "banned": banned,
                     "is_admin": uid in MOD_MANAGER_ADMINS,
                     "votes_cast": voted_on,
                     "votes_pending": len(suggested_mods) - voted_on,

@@ -143,14 +143,28 @@ def post_mod_to_discord(state, mod, action="suggested"):
                 print(f"zombiradar: seed 👎: {r2}")
 
 
+discord_user_cache = {}
+
 def fetch_discord_votes(thread_id, msg_id):
     if not thread_id or not msg_id:
         return {}
     bot_id = DISCORD_CLIENT_ID
     ups = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8D")
+    for u in (ups or []):
+        if u["id"] != bot_id:
+            discord_user_cache[u["id"]] = {
+                "username": u.get("global_name") or u["username"],
+                "avatar_url": f"https://cdn.discordapp.com/avatars/{u['id']}/{u['avatar']}.png" if u.get("avatar") else None,
+            }
     up_ids = {u["id"] for u in (ups or []) if u["id"] != bot_id}
     time.sleep(0.25)
     downs = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8E")
+    for u in (downs or []):
+        if u["id"] != bot_id:
+            discord_user_cache[u["id"]] = {
+                "username": u.get("global_name") or u["username"],
+                "avatar_url": f"https://cdn.discordapp.com/avatars/{u['id']}/{u['avatar']}.png" if u.get("avatar") else None,
+            }
     down_ids = {u["id"] for u in (downs or []) if u["id"] != bot_id}
     both = up_ids & down_ids
     votes = {}
