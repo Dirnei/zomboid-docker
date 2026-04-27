@@ -103,6 +103,7 @@ init_event_thread() {
         echo "discord-events: reusing event thread id=${EVENT_THREAD_ID}"
         return
     fi
+    echo "discord-events: creating event thread..."
     local response
     response=$(curl -s -X POST "https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/threads" \
         -H "$AUTH_HEADER" \
@@ -112,13 +113,16 @@ init_event_thread() {
     if [ -n "$EVENT_THREAD_ID" ]; then
         echo "$EVENT_THREAD_ID" > "$EVENT_THREAD_FILE"
         echo "discord-events: created event thread id=${EVENT_THREAD_ID}"
+    else
+        echo "discord-events: WARNING — thread creation failed: ${response}"
+        echo "discord-events: falling back to main channel"
     fi
 }
 
-# Post to events thread
+# Post to events thread, falls back to main channel
 send_event() {
-    [ -z "$EVENT_THREAD_ID" ] && return
-    curl -s -X POST "https://discord.com/api/v10/channels/${EVENT_THREAD_ID}/messages" \
+    local channel="${EVENT_THREAD_ID:-${DISCORD_CHANNEL_ID}}"
+    curl -s -X POST "https://discord.com/api/v10/channels/${channel}/messages" \
         -H "$AUTH_HEADER" \
         -H "Content-Type: application/json" \
         -d "{\"content\": \"$1\"}" > /dev/null 2>&1
