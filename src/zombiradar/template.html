@@ -189,12 +189,18 @@ async function render() {
   });
 }
 
-function getScore(m) {
+function getVoteCounts(m) {
   const votes = m.votes || {};
   const dv = discordVotes[m.workshop_id] || {};
-  const ups = Object.values(votes).filter(v => v > 0).length + (dv.ups || 0);
-  const downs = Object.values(votes).filter(v => v < 0).length + (dv.downs || 0);
-  return ups - downs;
+  const overlap = dv.overlap || [];
+  const webUps = Object.entries(votes).filter(([k,v]) => v > 0 && !overlap.includes(k)).length;
+  const webDowns = Object.entries(votes).filter(([k,v]) => v < 0 && !overlap.includes(k)).length;
+  return { ups: webUps + (dv.ups || 0), downs: webDowns + (dv.downs || 0) };
+}
+
+function getScore(m) {
+  const c = getVoteCounts(m);
+  return c.ups - c.downs;
 }
 
 function hasUserVoted(m) {
@@ -295,10 +301,9 @@ function renderModList(list, allMods, isAdmin) {
     const myVote = votes[currentUser.username] || 0;
     const dv = discordVotes[m.workshop_id] || {};
     const hasVotedDiscord = dv.voted || false;
-    const dUps = dv.ups || 0;
-    const dDowns = dv.downs || 0;
-    const ups = Object.values(votes).filter(v => v > 0).length + dUps;
-    const downs = Object.values(votes).filter(v => v < 0).length + dDowns;
+    const vc = getVoteCounts(m);
+    const ups = vc.ups;
+    const downs = vc.downs;
     const score = ups - downs;
     const url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + m.workshop_id;
     const title = m.title || m.workshop_id;
@@ -334,8 +339,9 @@ function renderModList(list, allMods, isAdmin) {
     }
 
     const scoreClass = score > 0 ? "score-pos" : score < 0 ? "score-neg" : "score-zero";
-    const upVoters = Object.entries(votes).filter(([k,v]) => v > 0).map(([k]) => k);
-    const downVoters = Object.entries(votes).filter(([k,v]) => v < 0).map(([k]) => k);
+    const overlap = (dv.overlap || []);
+    const upVoters = Object.entries(votes).filter(([k,v]) => v > 0 && !overlap.includes(k)).map(([k]) => k);
+    const downVoters = Object.entries(votes).filter(([k,v]) => v < 0 && !overlap.includes(k)).map(([k]) => k);
     let voterLine = "";
     if (upVoters.length) voterLine += '\u{1F44D} ' + upVoters.join(", ");
     if (upVoters.length && downVoters.length) voterLine += "  ";
@@ -423,10 +429,9 @@ function showDetail(wid) {
   const myVote = votes[currentUser.username] || 0;
   const dv = discordVotes[wid] || {};
   const hasVotedDiscord = dv.voted || false;
-  const dUps = dv.ups || 0;
-  const dDowns = dv.downs || 0;
-  const ups = Object.values(votes).filter(v => v > 0).length + dUps;
-  const downs = Object.values(votes).filter(v => v < 0).length + dDowns;
+  const vc = getVoteCounts(m);
+  const ups = vc.ups;
+  const downs = vc.downs;
   const score = ups - downs;
   const scoreClass = score > 0 ? "score-pos" : score < 0 ? "score-neg" : "score-zero";
 

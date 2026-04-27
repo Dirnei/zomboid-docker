@@ -128,15 +128,25 @@ class Handler(BaseHTTPRequestHandler):
             force = "1" in params.get("force", []) and session["role"] == "admin"
             state = load_state()
             all_votes = get_all_discord_votes(state, force=force)
+            uid_to_name = {}
+            for uid, u in state.get("users", {}).items():
+                uid_to_name[uid] = u["username"]
+            for uid, cached in discord_user_cache.items():
+                uid_to_name.setdefault(uid, cached.get("username"))
             result = {}
             for mod in state["mods"]:
                 msg_id = mod.get("discord_msg_id")
                 if msg_id:
                     dv = all_votes.get(msg_id, {})
+                    web_votes = mod.get("votes", {})
+                    discord_names = {uid_to_name.get(uid) for uid in dv if uid_to_name.get(uid)}
+                    deduped_ups = sum(1 for uid, v in dv.items() if v > 0)
+                    deduped_downs = sum(1 for uid, v in dv.items() if v < 0)
                     result[mod["workshop_id"]] = {
                         "voted": session["discord_id"] in dv,
-                        "ups": sum(1 for v in dv.values() if v > 0),
-                        "downs": sum(1 for v in dv.values() if v < 0),
+                        "ups": deduped_ups,
+                        "downs": deduped_downs,
+                        "overlap": list(discord_names & set(web_votes.keys())),
                     }
             self.send_json(result)
 
