@@ -1,10 +1,10 @@
 import json
 import os
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
 from hashlib import sha256
 
 from config import (
@@ -18,14 +18,24 @@ SESSIONS = {}
 _discord_votes_mem = {}
 _discord_votes_mem_time = 0
 
+_api_lock = threading.Lock()
+_api_last_call = 0
+API_MIN_INTERVAL = 0.5
+
 
 def discord_api(method, path, body=None, token=None, content_type="application/json"):
+    global _api_last_call
     url = f"https://discord.com/api/v10{path}"
     if content_type == "application/json":
         data = json.dumps(body).encode() if body else None
     else:
         data = urllib.parse.urlencode(body).encode() if body else None
     for attempt in range(3):
+        with _api_lock:
+            wait = API_MIN_INTERVAL - (time.time() - _api_last_call)
+            if wait > 0:
+                time.sleep(wait)
+            _api_last_call = time.time()
         req = urllib.request.Request(url, data=data, method=method, headers={
             "Authorization": f"Bot {DISCORD_TOKEN}" if not token else f"Bearer {token}",
             "Content-Type": content_type,
@@ -167,7 +177,6 @@ def fetch_discord_votes(thread_id, msg_id):
                 "avatar_url": f"https://cdn.discordapp.com/avatars/{u['id']}/{u['avatar']}.png" if u.get("avatar") else None,
             }
     up_ids = {u["id"] for u in (ups or []) if u["id"] != bot_id}
-    time.sleep(0.25)
     downs = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8E")
     for u in (downs or []):
         if u["id"] != bot_id:
@@ -209,10 +218,8 @@ def get_all_discord_votes(state, force=False):
     if not msg_ids:
         return {}
     result = {}
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = {pool.submit(fetch_discord_votes, thread_id, mid): mid for mid in msg_ids}
-        for future in futures:
-            result[futures[future]] = future.result()
+    for mid in msg_ids:
+        result[mid] = fetch_discord_votes(thread_id, mid)
     _discord_votes_mem = result
     _discord_votes_mem_time = now
     state["discord_votes_cache"] = {k: dict(v) for k, v in result.items()}
