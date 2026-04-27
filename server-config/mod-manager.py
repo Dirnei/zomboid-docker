@@ -56,16 +56,22 @@ def sync_mods_txt(state):
                 f.write(f"{mod['workshop_id']}\n")
 
 
-def fetch_workshop_title(workshop_id):
+def fetch_workshop_info(workshop_id):
     try:
         url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={workshop_id}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             html = resp.read().decode("utf-8", errors="replace")
-        m = re.search(r'<div class="workshopItemTitle">([^<]+)</div>', html)
-        return m.group(1).strip() if m else None
+        title_m = re.search(r'<div class="workshopItemTitle">([^<]+)</div>', html)
+        img_m = re.search(r'<img[^>]+id="previewImageMain"[^>]+src="([^"]+)"', html)
+        if not img_m:
+            img_m = re.search(r'<img[^>]+class="workshopItemPreviewImageMain"[^>]+src="([^"]+)"', html)
+        return {
+            "title": title_m.group(1).strip() if title_m else None,
+            "image": img_m.group(1).strip() if img_m else None,
+        }
     except Exception:
-        return None
+        return {"title": None, "image": None}
 
 
 def discord_api(method, path, body=None, token=None, content_type="application/json"):
@@ -301,6 +307,8 @@ HTML = """<!DOCTYPE html>
   .mod-item { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem;
               border-bottom: 1px solid #222; gap: 1rem; }
   .mod-item:last-child { border-bottom: none; }
+  .mod-thumb { width: 64px; height: 64px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+  .mod-thumb-empty { background: #0f3460; }
   .mod-info { flex: 1; min-width: 0; }
   .mod-title { color: #e0e0e0; font-weight: 500; }
   .mod-title a { color: #5ba4e6; text-decoration: none; }
@@ -430,12 +438,13 @@ async function render() {
   document.getElementById("app").innerHTML = html;
 
   mods.forEach((m, i) => {
-    if (!m.title) {
+    if (!m.title || !m.image) {
       api("GET", "/api/lookup/" + m.workshop_id).then(data => {
-        if (data && data.title) {
-          const el = document.querySelector('[data-wid="' + m.workshop_id + '"] .mod-title-text');
-          if (el) el.textContent = data.title;
-        }
+        if (!data) return;
+        const row = document.querySelector('[data-wid="' + m.workshop_id + '"]');
+        if (!row) return;
+        if (data.title) { const el = row.querySelector('.mod-title-text'); if (el) el.textContent = data.title; }
+        if (data.image) { const el = row.querySelector('.mod-thumb'); if (el) { el.src = data.image; el.classList.remove('mod-thumb-empty'); } }
       });
     }
   });
@@ -500,9 +509,12 @@ function renderModList(list, allMods, isAdmin) {
     }
     if (!voterLine) voterLine = "noch keine Stimmen";
 
+    const img = m.image ? '<img class="mod-thumb" src="' + m.image + '">' : '<div class="mod-thumb mod-thumb-empty"></div>';
+
     return '<div class="mod-item" data-wid="' + m.workshop_id + '">' +
       '<div class="vote-box">' + voteButtons +
         '<div class="score ' + scoreClass + '">' + (score > 0 ? "+" : "") + score + '</div></div>' +
+      '<a href="' + url + '" target="_blank">' + img + '</a>' +
       '<div class="mod-info">' +
         '<div class="mod-title"><a href="' + url + '" target="_blank" class="mod-title-text">' + title + '</a> ' +
           '<span class="badge badge-' + badge + '">' + badgeText + '</span></div>' +
@@ -666,7 +678,8 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_auth():
                 return
             wid = self.path.split("/")[-1]
-            self.send_json({"workshop_id": wid, "title": fetch_workshop_title(wid)})
+            info = fetch_workshop_info(wid)
+            self.send_json({"workshop_id": wid, **info})
 
         else:
             self.send_html()
@@ -687,10 +700,11 @@ class Handler(BaseHTTPRequestHandler):
             if any(m["workshop_id"] == workshop_id for m in state["mods"]):
                 self.send_json({"error": "Mod bereits vorgeschlagen"}, 409)
                 return
-            title = fetch_workshop_title(workshop_id)
+            info = fetch_workshop_info(workshop_id)
             mod = {
                 "workshop_id": workshop_id,
-                "title": title,
+                "title": info["title"],
+                "image": info["image"],
                 "suggested_by": session["username"],
                 "votes": {},
                 "status": "suggested",
