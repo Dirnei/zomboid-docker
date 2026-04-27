@@ -111,6 +111,14 @@
   .book-name { font-size: 0.9rem; }
   .book-name.checked { color: #666; text-decoration: line-through; }
   .book-by { color: #666; font-size: 0.75rem; margin-left: auto; }
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .stats-table th { text-align: left; color: #888; padding: 0.5rem; border-bottom: 1px solid #333; font-size: 0.8rem; }
+  .stats-table td { padding: 0.5rem; border-bottom: 1px solid #222; }
+  .stats-table tr:hover td { background: #0f3460; }
+  .stat-card { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .stat-item { background: #0f3460; border-radius: 6px; padding: 0.75rem 1rem; text-align: center; min-width: 100px; }
+  .stat-value { font-size: 1.5rem; font-weight: 700; color: #e94560; }
+  .stat-label { font-size: 0.75rem; color: #888; margin-top: 0.25rem; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
                    display: flex; align-items: center; justify-content: center; padding: 2rem; }
   .modal { background: #16213e; border-radius: 12px; max-width: 700px; width: 100%;
@@ -289,6 +297,7 @@ function renderMods(mods) {
       <div class="user-info">${avatarHtml}<strong>${currentUser.username}</strong>
         <div class="nav-links">
           <a href="#" onclick="showBooks();return false">Bücher</a>
+          <a href="#" onclick="showStats();return false">Stats</a>
           ${isAdmin ? '<a href="#" onclick="refreshDiscordVotes();return false" title="Discord-Votes neu laden">&#x21bb;</a>' : ''}
           ${isAdmin ? '<a href="#" onclick="showUsers();return false">Benutzer</a>' : ''}
           <a href="/api/logout">Logout</a>
@@ -595,6 +604,54 @@ async function toggleBook(id) {
   await api("POST", "/api/books/toggle", { id: id });
   const data = await api("GET", "/api/books");
   if (data) renderBooks(data);
+}
+
+async function showStats() {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
+    '<div class="modal"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
+    '<div class="modal-body"><h2>Statistiken</h2><div id="stats-content"><span class="loading">Laden...</span></div></div></div></div>';
+  const data = await api("GET", "/api/stats");
+  const el = document.getElementById("stats-content");
+  if (!el || !data) return;
+
+  const srv = data.server || {};
+  const players = data.players || [];
+  const totalDeaths = players.reduce((s, p) => s + p.deaths, 0);
+  const totalSessions = players.reduce((s, p) => s + p.sessions, 0);
+  const totalPlaytime = players.reduce((s, p) => s + p.playtime_min, 0);
+
+  function fmtTime(min) {
+    if (min < 60) return min + ' Min';
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return h + ' Std' + (m ? ' ' + m + ' Min' : '');
+  }
+
+  let html = '<div class="stat-card">' +
+    '<div class="stat-item"><div class="stat-value">' + players.length + '</div><div class="stat-label">Spieler</div></div>' +
+    '<div class="stat-item"><div class="stat-value">' + totalSessions + '</div><div class="stat-label">Sessions</div></div>' +
+    '<div class="stat-item"><div class="stat-value">' + totalDeaths + '</div><div class="stat-label">Tode</div></div>' +
+    '<div class="stat-item"><div class="stat-value">' + fmtTime(totalPlaytime) + '</div><div class="stat-label">Spielzeit</div></div>' +
+    '<div class="stat-item"><div class="stat-value">' + (srv.starts || 0) + '</div><div class="stat-label">Server-Starts</div></div>' +
+    '</div>';
+
+  if (players.length) {
+    html += '<table class="stats-table"><tr><th>Spieler</th><th>Sessions</th><th>Tode</th><th>Tode/Session</th><th>Spielzeit</th><th>Zuletzt gesehen</th></tr>';
+    html += players.map(p =>
+      '<tr><td><strong>' + p.name + '</strong></td>' +
+      '<td>' + p.sessions + '</td>' +
+      '<td>' + p.deaths + '</td>' +
+      '<td>' + p.deaths_per_session + '</td>' +
+      '<td>' + fmtTime(p.playtime_min) + '</td>' +
+      '<td style="color:#888">' + (p.last_seen || '?') + '</td></tr>'
+    ).join("");
+    html += '</table>';
+  } else {
+    html += '<p class="empty">Noch keine Daten vorhanden.</p>';
+  }
+
+  el.innerHTML = html;
 }
 
 checkSession();

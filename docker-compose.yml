@@ -66,6 +66,7 @@ services:
       - TZ=${TZ}
     volumes:
       - server-saves:/home/steam/Zomboid:ro
+      - discord-data:/data
 
   zombiradar:
     build:
@@ -85,6 +86,7 @@ services:
     volumes:
       - ./mods.txt:/data/mods.txt
       - mod-manager-data:/data
+      - discord-data:/discord-data:ro
     networks:
       lksn: {}
 
@@ -138,6 +140,7 @@ volumes:
   server-saves:
   loki-data:
   grafana-data:
+  discord-data:
   mod-manager-data:
   backups:
     driver: local

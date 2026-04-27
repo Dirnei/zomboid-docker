@@ -236,6 +236,33 @@ class Handler(BaseHTTPRequestHandler):
                 result.append({"skill": group["skill"], "books": books})
             self.send_json(result)
 
+        elif self.path == "/api/stats":
+            if not self.require_auth():
+                return
+            try:
+                with open("/discord-data/stats.json") as f:
+                    stats = json.load(f)
+            except Exception:
+                stats = {"players": {}, "server": {"starts": 0}}
+            players = []
+            for name, p in stats.get("players", {}).items():
+                sessions = p.get("sessions", 0)
+                deaths = p.get("deaths", 0)
+                players.append({
+                    "name": name,
+                    "deaths": deaths,
+                    "sessions": sessions,
+                    "deaths_per_session": round(deaths / sessions, 1) if sessions else 0,
+                    "playtime_min": p.get("playtime_min", 0),
+                    "first_seen": p.get("first_seen", "?"),
+                    "last_seen": p.get("last_seen", p.get("last_join", "?")),
+                })
+            players.sort(key=lambda x: x["playtime_min"], reverse=True)
+            self.send_json({
+                "server": stats.get("server", {}),
+                "players": players,
+            })
+
         else:
             self.send_html()
 

@@ -7,10 +7,80 @@ DISCORD_API="https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages
 AUTH_HEADER="Authorization: Bot ${DISCORD_TOKEN}"
 PLAYER_FILE="/tmp/online_players.txt"
 STATUS_MSG_FILE="/tmp/status_msg_id.txt"
+LAST_TS_FILE="/data/last_timestamp.txt"
+STATS_FILE="/data/stats.json"
+SESSIONS_FILE="/tmp/sessions.txt"
 
 > "$PLAYER_FILE"
 > "$STATUS_MSG_FILE"
+> "$SESSIONS_FILE"
 
+# Initialize stats file if missing
+[ ! -f "$STATS_FILE" ] && echo '{"players":{},"server":{"starts":0}}' > "$STATS_FILE"
+
+LAST_TS=$(cat "$LAST_TS_FILE" 2>/dev/null || echo "")
+[ -n "$LAST_TS" ] && echo "discord-events: resuming after timestamp ${LAST_TS}"
+
+save_ts() {
+    echo "$1" > "$LAST_TS_FILE"
+    LAST_TS="$1"
+}
+
+# Update stats JSON using a simple Python one-liner (jq alternative)
+update_stats() {
+    local action="$1" player="$2" ts="$3"
+    python3 -c "
+import json, sys
+action, player, ts = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    with open('$STATS_FILE') as f: stats = json.load(f)
+except: stats = {'players': {}, 'server': {'starts': 0}}
+if action == 'server_start':
+    stats['server']['starts'] = stats['server'].get('starts', 0) + 1
+    stats['server']['last_start'] = ts
+elif player:
+    p = stats['players'].setdefault(player, {'deaths': 0, 'sessions': 0, 'playtime_min': 0})
+    if action == 'join':
+        p['sessions'] = p.get('sessions', 0) + 1
+        p['last_join'] = ts
+        if not p.get('first_seen'): p['first_seen'] = ts
+    elif action == 'leave':
+        p['last_seen'] = ts
+        if p.get('last_join'):
+            try:
+                from datetime import datetime
+                fmt = '%y-%m-%d %H:%M:%S'
+                jt = datetime.strptime(p['last_join'][:17], fmt)
+                lt = datetime.strptime(ts[:17], fmt)
+                p['playtime_min'] = p.get('playtime_min', 0) + max(0, int((lt - jt).total_seconds() / 60))
+            except: pass
+            p['last_join'] = ''
+    elif action == 'death':
+        p['deaths'] = p.get('deaths', 0) + 1
+        p['last_death'] = ts
+with open('$STATS_FILE', 'w') as f: json.dump(stats, f, indent=2)
+" "$action" "$player" "$ts" 2>/dev/null
+}
+
+# Extract timestamp from a log line: [25-04-26 19:34:05.001]
+get_ts() {
+    echo "$1" | grep -oP '^\[\K[0-9-]+ [0-9:.]+' | head -1
+}
+
+# Returns 0 if line should be processed, 1 if it should be skipped
+should_process() {
+    local ts
+    ts=$(get_ts "$1")
+    [ -z "$ts" ] && return 0
+    [ -z "$LAST_TS" ] && return 0
+    [[ "$ts" > "$LAST_TS" ]] && return 0
+    return 1
+}
+
+EVENT_THREAD_FILE="/data/event_thread_id.txt"
+EVENT_THREAD_ID=$(cat "$EVENT_THREAD_FILE" 2>/dev/null || echo "")
+
+# Post to main channel (for player list)
 send_discord() {
     curl -s -X POST "$DISCORD_API" \
         -H "$AUTH_HEADER" \
@@ -18,12 +88,40 @@ send_discord() {
         -d "{\"content\": \"$1\"}" > /dev/null 2>&1
 }
 
+# Edit message in main channel
 edit_discord() {
     local msg_id="$1" content="$2"
     curl -s -X PATCH "${DISCORD_API}/${msg_id}" \
         -H "$AUTH_HEADER" \
         -H "Content-Type: application/json" \
         -d "{\"content\": \"${content}\"}" > /dev/null 2>&1
+}
+
+# Create or reuse the events thread
+init_event_thread() {
+    if [ -n "$EVENT_THREAD_ID" ]; then
+        echo "discord-events: reusing event thread id=${EVENT_THREAD_ID}"
+        return
+    fi
+    local response
+    response=$(curl -s -X POST "https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/threads" \
+        -H "$AUTH_HEADER" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "Server-Events", "type": 11, "auto_archive_duration": 10080}')
+    EVENT_THREAD_ID=$(echo "$response" | grep -oP '"id"\s*:\s*"\K[0-9]+' | head -1)
+    if [ -n "$EVENT_THREAD_ID" ]; then
+        echo "$EVENT_THREAD_ID" > "$EVENT_THREAD_FILE"
+        echo "discord-events: created event thread id=${EVENT_THREAD_ID}"
+    fi
+}
+
+# Post to events thread
+send_event() {
+    [ -z "$EVENT_THREAD_ID" ] && return
+    curl -s -X POST "https://discord.com/api/v10/channels/${EVENT_THREAD_ID}/messages" \
+        -H "$AUTH_HEADER" \
+        -H "Content-Type: application/json" \
+        -d "{\"content\": \"$1\"}" > /dev/null 2>&1
 }
 
 init_status_msg() {
@@ -81,9 +179,10 @@ wait_for_log() {
     done
 }
 
-trap 'send_discord ":octagonal_sign: **Server wird heruntergefahren...**"; kill $(jobs -p) 2>/dev/null; exit 0' SIGTERM SIGINT
+trap 'send_event ":octagonal_sign: **Server wird heruntergefahren...**"; kill $(jobs -p) 2>/dev/null; exit 0' SIGTERM SIGINT
 
 init_status_msg
+init_event_thread
 
 # Server log watcher — runs in a loop to handle restarts/wipes
 watch_server_log() {
@@ -94,17 +193,26 @@ watch_server_log() {
         echo "discord-events: [server] tailing ${log_file}"
 
         while read -r line; do
+            should_process "$line" || continue
+            local ts
+            ts=$(get_ts "$line")
             case "$line" in
                 *"SERVER STARTED"*)
-                    send_discord ":white_check_mark: **Server ist online — bereit zum Beitreten!**" ;;
+                    send_event ":white_check_mark: **Server ist online — bereit zum Beitreten!**"
+                    update_stats "server_start" "" "$ts"
+                    [ -n "$ts" ] && save_ts "$ts" ;;
                 *"fully-connected"*)
                     player=$(echo "$line" | grep -oP 'username="\K[^"]+')
-                    send_discord ":green_circle: **${player:-Ein Spieler}** hat den Server betreten"
-                    [ -n "$player" ] && add_player "$player" ;;
+                    send_event ":green_circle: **${player:-Ein Spieler}** hat den Server betreten"
+                    [ -n "$player" ] && add_player "$player"
+                    [ -n "$player" ] && update_stats "join" "$player" "$ts"
+                    [ -n "$ts" ] && save_ts "$ts" ;;
                 *"receive-disconnect"*)
                     player=$(echo "$line" | grep -oP 'username="\K[^"]+')
-                    send_discord ":red_circle: **${player:-Ein Spieler}** hat den Server verlassen"
-                    [ -n "$player" ] && remove_player "$player" ;;
+                    send_event ":red_circle: **${player:-Ein Spieler}** hat den Server verlassen"
+                    [ -n "$player" ] && remove_player "$player"
+                    [ -n "$player" ] && update_stats "leave" "$player" "$ts"
+                    [ -n "$ts" ] && save_ts "$ts" ;;
             esac
         done < <(tail -n +1 -F "$log_file" 2>/dev/null) &
         local reader_pid=$!
@@ -141,10 +249,15 @@ watch_user_log() {
         echo "discord-events: [user] tailing ${log_file}"
 
         while read -r line; do
+            should_process "$line" || continue
+            local ts
+            ts=$(get_ts "$line")
             case "$line" in
                 *" died at "*)
                     player=$(echo "$line" | grep -oP 'user \K.+(?= died at)')
-                    send_discord ":skull: **${player:-Ein Spieler}** ist gestorben" ;;
+                    send_event ":skull: **${player:-Ein Spieler}** ist gestorben"
+                    [ -n "$player" ] && update_stats "death" "$player" "$ts"
+                    [ -n "$ts" ] && save_ts "$ts" ;;
             esac
         done < <(tail -n +1 -F "$log_file" 2>/dev/null) &
         local reader_pid=$!
