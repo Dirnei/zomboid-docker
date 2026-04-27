@@ -153,6 +153,8 @@ function renderLogin() {
 }
 
 let discordVotes = {};
+const PAGE_SIZE = 10;
+let pages = {};
 
 async function render() {
   if (!currentUser) { renderLogin(); return; }
@@ -180,9 +182,64 @@ async function render() {
   });
 }
 
+function getScore(m) {
+  const votes = m.votes || {};
+  const dv = discordVotes[m.workshop_id] || {};
+  const ups = Object.values(votes).filter(v => v > 0).length + (dv.ups || 0);
+  const downs = Object.values(votes).filter(v => v < 0).length + (dv.downs || 0);
+  return ups - downs;
+}
+
+function hasUserVoted(m) {
+  const votes = m.votes || {};
+  if (votes[currentUser.username]) return true;
+  const dv = discordVotes[m.workshop_id] || {};
+  return dv.voted || false;
+}
+
+function sortByScore(list) {
+  return [...list].sort((a, b) => getScore(b) - getScore(a));
+}
+
+function paginate(list, key) {
+  const page = pages[key] || 0;
+  const start = page * PAGE_SIZE;
+  const pageItems = list.slice(start, start + PAGE_SIZE);
+  const totalPages = Math.ceil(list.length / PAGE_SIZE);
+  return { items: pageItems, page, totalPages, total: list.length };
+}
+
+function renderPagination(key, totalPages, currentPage) {
+  if (totalPages <= 1) return "";
+  let html = '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.75rem">';
+  if (currentPage > 0) html += '<button class="toggle-btn" onclick="setPage(\'' + key + '\',' + (currentPage - 1) + ')">&#9664;</button>';
+  html += '<span class="mod-meta" style="padding:0.4rem">' + (currentPage + 1) + ' / ' + totalPages + '</span>';
+  if (currentPage < totalPages - 1) html += '<button class="toggle-btn" onclick="setPage(\'' + key + '\',' + (currentPage + 1) + ')">&#9654;</button>';
+  html += '</div>';
+  return html;
+}
+
+function setPage(key, page) {
+  pages[key] = page;
+  renderMods(currentMods);
+}
+
+function renderSection(title, list, allMods, isAdmin, key) {
+  if (!list.length) return "";
+  const sorted = sortByScore(list);
+  const p = paginate(sorted, key);
+  let html = '<div class="card"><h2>' + title + ' (' + p.total + ')</h2>';
+  html += renderModList(p.items, allMods, isAdmin);
+  html += renderPagination(key, p.totalPages, p.page);
+  html += '</div>';
+  return html;
+}
+
 function renderMods(mods) {
   const isAdmin = currentUser.role === "admin";
   const suggested = mods.filter(m => m.status === "suggested");
+  const unvoted = suggested.filter(m => !hasUserVoted(m));
+  const voted = suggested.filter(m => hasUserVoted(m));
   const approved = mods.filter(m => m.status === "approved");
   const rejected = mods.filter(m => m.status === "rejected");
 
@@ -207,21 +264,11 @@ function renderMods(mods) {
       <div id="add-status" class="status"></div>
     </div>`;
 
-  if (suggested.length) {
-    html += '<div class="card"><h2>Vorschläge (' + suggested.length + ')</h2>';
-    html += renderModList(suggested, mods, isAdmin);
-    html += '</div>';
-  }
-  if (approved.length) {
-    html += '<div class="card"><h2>Genehmigte Mods (' + approved.length + ')</h2>';
-    html += renderModList(approved, mods, isAdmin);
-    html += '</div>';
-  }
-  if (rejected.length) {
-    html += '<div class="card"><h2>Abgelehnt (' + rejected.length + ')</h2>';
-    html += renderModList(rejected, mods, isAdmin);
-    html += '</div>';
-  }
+  html += renderSection('Deine Stimme fehlt', unvoted, mods, isAdmin, 'unvoted');
+  html += renderSection('Vorschläge', voted, mods, isAdmin, 'voted');
+  html += renderSection('Genehmigte Mods', approved, mods, isAdmin, 'approved');
+  html += renderSection('Abgelehnt', rejected, mods, isAdmin, 'rejected');
+
   if (!suggested.length && !approved.length && !rejected.length) {
     html += '<div class="card"><p class="empty">Noch keine Mods vorgeschlagen.</p></div>';
   }
