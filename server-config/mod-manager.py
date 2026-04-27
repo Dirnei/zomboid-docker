@@ -698,7 +698,7 @@ class Handler(BaseHTTPRequestHandler):
                         return
                 username = session["username"]
                 if not isinstance(mod.get("votes"), dict):
-                    mod["votes"] = {}
+                    mod["votes"] = {u: 1 for u in mod.get("votes", [])}
                 current = mod["votes"].get(username, 0)
                 if current == value:
                     del mod["votes"][username]
@@ -724,13 +724,16 @@ class Handler(BaseHTTPRequestHandler):
             if 0 <= idx < len(state["mods"]):
                 mod = state["mods"][idx]
                 if new_status == "deleted":
+                    thread_id = state.get("discord_thread_id")
+                    msg_id = mod.get("discord_msg_id")
+                    if thread_id and msg_id:
+                        discord_api("DELETE", f"/channels/{thread_id}/messages/{msg_id}")
                     state["mods"].pop(idx)
                 else:
                     mod["status"] = new_status
+                    post_mod_to_discord(state, mod, new_status)
                 save_state(state)
                 sync_mods_txt(state)
-                if new_status != "deleted":
-                    post_mod_to_discord(state, mod, new_status)
                 self.send_json({"ok": True})
             else:
                 self.send_json({"error": "not found"}, 404)
