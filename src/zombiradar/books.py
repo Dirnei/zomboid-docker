@@ -1,35 +1,76 @@
 SKILL_BOOKS = [
-    {"skill": "Carpentry", "books": [
-        "Carpentry for Beginners", "Carpentry for Intermediates",
-        "Advanced Carpentry", "Expert Carpentry", "Master Carpentry"]},
-    {"skill": "Cooking", "books": [
-        "Cooking for Beginners", "Cooking for Intermediates",
-        "Advanced Cooking", "Expert Cooking", "Master Cooking"]},
-    {"skill": "Electrical", "books": [
-        "How to Use Generators",
-        "Electronics for Beginners", "Electronics for Intermediates",
-        "Advanced Electronics", "Expert Electronics", "Master Electronics"]},
-    {"skill": "Farming", "books": [
-        "Farming for Beginners", "Farming for Intermediates",
-        "Advanced Farming", "Expert Farming", "Master Farming"]},
-    {"skill": "First Aid", "books": [
-        "First Aid for Beginners", "First Aid for Intermediates",
-        "Advanced First Aid", "Expert First Aid", "Master First Aid"]},
-    {"skill": "Fishing", "books": [
-        "Fishing for Beginners", "Fishing for Intermediates",
-        "Advanced Fishing", "Expert Fishing", "Master Fishing"]},
-    {"skill": "Foraging", "books": [
-        "The Herbalist"]},
-    {"skill": "Mechanics", "books": [
-        "Mechanics for Beginners", "Mechanics for Intermediates",
-        "Advanced Mechanics", "Expert Mechanics", "Master Mechanics"]},
-    {"skill": "Metalworking", "books": [
-        "Metalwork for Beginners", "Metalwork for Intermediates",
-        "Advanced Metalwork", "Expert Metalwork", "Master Metalwork"]},
-    {"skill": "Tailoring", "books": [
-        "Tailoring for Beginners", "Tailoring for Intermediates",
-        "Advanced Tailoring", "Expert Tailoring", "Master Tailoring"]},
-    {"skill": "Trapping", "books": [
-        "Trapping for Beginners", "Trapping for Intermediates",
-        "Advanced Trapping", "Expert Trapping", "Master Trapping"]},
+    {"skill": "Carpentry / Schreinerei", "books": [
+        {"id": "carp1", "vol": 1, "en": "Carpentry for Beginners", "de": "Schreinerei für Anfänger"},
+        {"id": "carp2", "vol": 2, "en": "Carpentry for Intermediates", "de": "Schreinerei für Fortgeschrittene"},
+        {"id": "carp3", "vol": 3, "en": "Advanced Carpentry", "de": "Fortgeschrittene Schreinerei"},
+        {"id": "carp4", "vol": 4, "en": "Expert Carpentry", "de": "Experten-Schreinerei"},
+        {"id": "carp5", "vol": 5, "en": "Master Carpentry", "de": "Meister-Schreinerei"},
+    ]},
+    {"skill": "Cooking / Kochen", "books": [
+        {"id": "cook1", "vol": 1, "en": "Cooking for Beginners", "de": "Kochen für Anfänger"},
+        {"id": "cook2", "vol": 2, "en": "Cooking for Intermediates", "de": "Kochen für Fortgeschrittene"},
+        {"id": "cook3", "vol": 3, "en": "Advanced Cooking", "de": "Fortgeschrittenes Kochen"},
+        {"id": "cook4", "vol": 4, "en": "Expert Cooking", "de": "Experten-Kochen"},
+        {"id": "cook5", "vol": 5, "en": "Master Cooking", "de": "Meister-Kochen"},
+    ]},
+    {"skill": "Electrical / Elektrik", "books": [
+        {"id": "gen", "vol": None, "en": "How to Use Generators", "de": "Wie man Generatoren benutzt"},
+        {"id": "elec1", "vol": 1, "en": "Electronics for Beginners", "de": "Elektronik für Anfänger"},
+        {"id": "elec2", "vol": 2, "en": "Electronics for Intermediates", "de": "Elektronik für Fortgeschrittene"},
+        {"id": "elec3", "vol": 3, "en": "Advanced Electronics", "de": "Fortgeschrittene Elektronik"},
+        {"id": "elec4", "vol": 4, "en": "Expert Electronics", "de": "Experten-Elektronik"},
+        {"id": "elec5", "vol": 5, "en": "Master Electronics", "de": "Meister-Elektronik"},
+    ]},
+    {"skill": "Farming / Landwirtschaft", "books": [
+        {"id": "farm1", "vol": 1, "en": "Farming for Beginners", "de": "Landwirtschaft für Anfänger"},
+        {"id": "farm2", "vol": 2, "en": "Farming for Intermediates", "de": "Landwirtschaft für Fortgeschrittene"},
+        {"id": "farm3", "vol": 3, "en": "Advanced Farming", "de": "Fortgeschrittene Landwirtschaft"},
+        {"id": "farm4", "vol": 4, "en": "Expert Farming", "de": "Experten-Landwirtschaft"},
+        {"id": "farm5", "vol": 5, "en": "Master Farming", "de": "Meister-Landwirtschaft"},
+    ]},
+    {"skill": "First Aid / Erste Hilfe", "books": [
+        {"id": "aid1", "vol": 1, "en": "First Aid for Beginners", "de": "Erste Hilfe für Anfänger"},
+        {"id": "aid2", "vol": 2, "en": "First Aid for Intermediates", "de": "Erste Hilfe für Fortgeschrittene"},
+        {"id": "aid3", "vol": 3, "en": "Advanced First Aid", "de": "Fortgeschrittene Erste Hilfe"},
+        {"id": "aid4", "vol": 4, "en": "Expert First Aid", "de": "Experten-Erste Hilfe"},
+        {"id": "aid5", "vol": 5, "en": "Master First Aid", "de": "Meister-Erste Hilfe"},
+    ]},
+    {"skill": "Fishing / Angeln", "books": [
+        {"id": "fish1", "vol": 1, "en": "Fishing for Beginners", "de": "Angeln für Anfänger"},
+        {"id": "fish2", "vol": 2, "en": "Fishing for Intermediates", "de": "Angeln für Fortgeschrittene"},
+        {"id": "fish3", "vol": 3, "en": "Advanced Fishing", "de": "Fortgeschrittenes Angeln"},
+        {"id": "fish4", "vol": 4, "en": "Expert Fishing", "de": "Experten-Angeln"},
+        {"id": "fish5", "vol": 5, "en": "Master Fishing", "de": "Meister-Angeln"},
+    ]},
+    {"skill": "Foraging / Sammeln", "books": [
+        {"id": "herb", "vol": None, "en": "The Herbalist", "de": "Der Kräuterkundige"},
+    ]},
+    {"skill": "Mechanics / Mechanik", "books": [
+        {"id": "mech1", "vol": 1, "en": "Mechanics for Beginners", "de": "Mechanik für Anfänger"},
+        {"id": "mech2", "vol": 2, "en": "Mechanics for Intermediates", "de": "Mechanik für Fortgeschrittene"},
+        {"id": "mech3", "vol": 3, "en": "Advanced Mechanics", "de": "Fortgeschrittene Mechanik"},
+        {"id": "mech4", "vol": 4, "en": "Expert Mechanics", "de": "Experten-Mechanik"},
+        {"id": "mech5", "vol": 5, "en": "Master Mechanics", "de": "Meister-Mechanik"},
+    ]},
+    {"skill": "Metalworking / Metallverarbeitung", "books": [
+        {"id": "metal1", "vol": 1, "en": "Metalwork for Beginners", "de": "Metallverarbeitung für Anfänger"},
+        {"id": "metal2", "vol": 2, "en": "Metalwork for Intermediates", "de": "Metallverarbeitung für Fortgeschrittene"},
+        {"id": "metal3", "vol": 3, "en": "Advanced Metalwork", "de": "Fortgeschrittene Metallverarbeitung"},
+        {"id": "metal4", "vol": 4, "en": "Expert Metalwork", "de": "Experten-Metallverarbeitung"},
+        {"id": "metal5", "vol": 5, "en": "Master Metalwork", "de": "Meister-Metallverarbeitung"},
+    ]},
+    {"skill": "Tailoring / Schneiderei", "books": [
+        {"id": "tail1", "vol": 1, "en": "Tailoring for Beginners", "de": "Schneiderei für Anfänger"},
+        {"id": "tail2", "vol": 2, "en": "Tailoring for Intermediates", "de": "Schneiderei für Fortgeschrittene"},
+        {"id": "tail3", "vol": 3, "en": "Advanced Tailoring", "de": "Fortgeschrittene Schneiderei"},
+        {"id": "tail4", "vol": 4, "en": "Expert Tailoring", "de": "Experten-Schneiderei"},
+        {"id": "tail5", "vol": 5, "en": "Master Tailoring", "de": "Meister-Schneiderei"},
+    ]},
+    {"skill": "Trapping / Fallenstellen", "books": [
+        {"id": "trap1", "vol": 1, "en": "Trapping for Beginners", "de": "Fallenstellen für Anfänger"},
+        {"id": "trap2", "vol": 2, "en": "Trapping for Intermediates", "de": "Fallenstellen für Fortgeschrittene"},
+        {"id": "trap3", "vol": 3, "en": "Advanced Trapping", "de": "Fortgeschrittenes Fallenstellen"},
+        {"id": "trap4", "vol": 4, "en": "Expert Trapping", "de": "Experten-Fallenstellen"},
+        {"id": "trap5", "vol": 5, "en": "Master Trapping", "de": "Meister-Fallenstellen"},
+    ]},
 ]

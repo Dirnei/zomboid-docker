@@ -223,10 +223,13 @@ class Handler(BaseHTTPRequestHandler):
             result = []
             for group in SKILL_BOOKS:
                 books = []
-                for name in group["books"]:
-                    entry = checked.get(name)
+                for b in group["books"]:
+                    entry = checked.get(b["id"])
                     books.append({
-                        "name": name,
+                        "id": b["id"],
+                        "vol": b["vol"],
+                        "en": b["en"],
+                        "de": b["de"],
                         "checked": entry is not None,
                         "checked_by": entry["by"] if entry else None,
                     })
@@ -253,13 +256,13 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_ban(session)
         elif self.path == "/api/books/toggle":
             data = self.read_body()
-            name = data.get("name", "")
+            book_id = data.get("id", "")
             state = load_state()
             books = state.setdefault("books", {})
-            if name in books:
-                del books[name]
+            if book_id in books:
+                del books[book_id]
             else:
-                books[name] = {"by": session["username"]}
+                books[book_id] = {"by": session["username"]}
             save_state(state)
             self.send_json({"ok": True})
         else:

@@ -581,17 +581,18 @@ function renderBooks(data) {
         const checkCls = b.checked ? "book-check checked" : "book-check";
         const nameCls = b.checked ? "book-name checked" : "book-name";
         const icon = b.checked ? "✓" : "";
+        const vol = b.vol ? '<span style="color:#e94560;font-weight:600;min-width:2.5rem;display:inline-block">Vol. ' + b.vol + '</span> ' : '<span style="min-width:2.5rem;display:inline-block">&nbsp;</span> ';
         const by = b.checked_by ? '<span class="book-by">' + b.checked_by + '</span>' : '';
-        return '<div class="book-item" onclick="toggleBook(\'' + b.name.replace(/'/g, "\\'") + '\')">' +
+        return '<div class="book-item" onclick="toggleBook(\'' + b.id + '\')">' +
           '<div class="' + checkCls + '">' + icon + '</div>' +
-          '<div class="' + nameCls + '">' + b.name + '</div>' + by + '</div>';
+          vol + '<div class="' + nameCls + '">' + b.en + ' <span style="color:#666">/ ' + b.de + '</span></div>' + by + '</div>';
       }).join("") + '</div>';
   }).join("");
   el.innerHTML = html;
 }
 
-async function toggleBook(name) {
-  await api("POST", "/api/books/toggle", { name: name });
+async function toggleBook(id) {
+  await api("POST", "/api/books/toggle", { id: id });
   const data = await api("GET", "/api/books");
   if (data) renderBooks(data);
 }
