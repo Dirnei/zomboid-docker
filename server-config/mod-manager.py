@@ -98,7 +98,10 @@ def exchange_code(code):
         "https://discord.com/api/v10/oauth2/token",
         data=data,
         method="POST",
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "PZ-ModManager/1.0",
+        },
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
