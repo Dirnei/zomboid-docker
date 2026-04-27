@@ -192,13 +192,23 @@ def post_mod_to_discord(state, mod, action="suggested"):
                 print(f"mod-manager: seed 👎: {r2}")
 
 
-def fetch_discord_voters(thread_id, msg_id):
+def fetch_discord_votes(thread_id, msg_id):
+    """Returns {user_id: 1/-1}. Both reactions cancel out to exclusion."""
     if not thread_id or not msg_id:
-        return set()
-    result = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8D")
-    if not result or not isinstance(result, list):
-        return set()
-    return {u["id"] for u in result if u["id"] != DISCORD_CLIENT_ID}
+        return {}
+    bot_id = DISCORD_CLIENT_ID
+    ups = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8D")
+    up_ids = {u["id"] for u in (ups or []) if u["id"] != bot_id}
+    time.sleep(0.25)
+    downs = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8E")
+    down_ids = {u["id"] for u in (downs or []) if u["id"] != bot_id}
+    both = up_ids & down_ids
+    votes = {}
+    for uid in up_ids - both:
+        votes[uid] = 1
+    for uid in down_ids - both:
+        votes[uid] = -1
+    return votes
 
 
 _discord_votes_cache = {}
@@ -221,7 +231,7 @@ def get_all_discord_votes(state):
         return {}
     result = {}
     with ThreadPoolExecutor(max_workers=5) as pool:
-        futures = {pool.submit(fetch_discord_voters, thread_id, mid): mid for mid in msg_ids}
+        futures = {pool.submit(fetch_discord_votes, thread_id, mid): mid for mid in msg_ids}
         for future in futures:
             result[futures[future]] = future.result()
     _discord_votes_cache = result
@@ -435,9 +445,10 @@ function renderModList(list, allMods, isAdmin) {
     const votes = m.votes || {};
     const myVote = votes[currentUser.username] || 0;
     const hasVotedDiscord = m.voted_on_discord;
-    const discordVotes = m.discord_vote_count || 0;
-    const ups = Object.values(votes).filter(v => v > 0).length + discordVotes;
-    const downs = Object.values(votes).filter(v => v < 0).length;
+    const dUps = m.discord_ups || 0;
+    const dDowns = m.discord_downs || 0;
+    const ups = Object.values(votes).filter(v => v > 0).length + dUps;
+    const downs = Object.values(votes).filter(v => v < 0).length + dDowns;
     const score = ups - downs;
     const url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + m.workshop_id;
     const title = m.title || m.workshop_id;
@@ -479,7 +490,12 @@ function renderModList(list, allMods, isAdmin) {
     if (upVoters.length) voterLine += '\\u{1F44D} ' + upVoters.join(", ");
     if (upVoters.length && downVoters.length) voterLine += "  ";
     if (downVoters.length) voterLine += '\\u{1F44E} ' + downVoters.join(", ");
-    if (discordVotes) voterLine += (voterLine ? "  " : "") + '(+' + discordVotes + ' via Discord)';
+    if (dUps || dDowns) {
+      let dParts = [];
+      if (dUps) dParts.push('\\u{1F44D} ' + dUps);
+      if (dDowns) dParts.push('\\u{1F44E} ' + dDowns);
+      voterLine += (voterLine ? "  " : "") + '(Discord: ' + dParts.join(' ') + ')';
+    }
     if (!voterLine) voterLine = "noch keine Stimmen";
 
     return '<div class="mod-item" data-wid="' + m.workshop_id + '">' +
@@ -637,9 +653,10 @@ class Handler(BaseHTTPRequestHandler):
             mods = []
             for mod in state["mods"]:
                 m = dict(mod)
-                discord_voters = all_votes.get(mod.get("discord_msg_id"), set())
-                m["voted_on_discord"] = session["discord_id"] in discord_voters
-                m["discord_vote_count"] = len(discord_voters)
+                dv = all_votes.get(mod.get("discord_msg_id"), {})
+                m["voted_on_discord"] = session["discord_id"] in dv
+                m["discord_ups"] = sum(1 for v in dv.values() if v > 0)
+                m["discord_downs"] = sum(1 for v in dv.values() if v < 0)
                 mods.append(m)
             self.send_json(mods)
 
@@ -692,12 +709,11 @@ class Handler(BaseHTTPRequestHandler):
                 if value not in (1, -1):
                     self.send_json({"error": "invalid vote"}, 400)
                     return
-                if value == 1:
-                    all_votes = get_all_discord_votes(state)
-                    discord_voters = all_votes.get(mod.get("discord_msg_id"), set())
-                    if session["discord_id"] in discord_voters:
-                        self.send_json({"error": "Bereits auf Discord abgestimmt"}, 409)
-                        return
+                all_votes = get_all_discord_votes(state)
+                dv = all_votes.get(mod.get("discord_msg_id"), {})
+                if session["discord_id"] in dv:
+                    self.send_json({"error": "Bereits auf Discord abgestimmt"}, 409)
+                    return
                 username = session["username"]
                 current = mod.get("votes", {}).get(username, 0)
                 if current == value:
