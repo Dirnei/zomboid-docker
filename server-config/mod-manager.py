@@ -637,8 +637,6 @@ class Handler(BaseHTTPRequestHandler):
             mods = []
             for mod in state["mods"]:
                 m = dict(mod)
-                if isinstance(m.get("votes"), list):
-                    m["votes"] = {u: 1 for u in m["votes"]}
                 discord_voters = all_votes.get(mod.get("discord_msg_id"), set())
                 m["voted_on_discord"] = session["discord_id"] in discord_voters
                 m["discord_vote_count"] = len(discord_voters)
@@ -701,9 +699,7 @@ class Handler(BaseHTTPRequestHandler):
                         self.send_json({"error": "Bereits auf Discord abgestimmt"}, 409)
                         return
                 username = session["username"]
-                if not isinstance(mod.get("votes"), dict):
-                    mod["votes"] = {u: 1 for u in mod.get("votes", [])}
-                current = mod["votes"].get(username, 0)
+                current = mod.get("votes", {}).get(username, 0)
                 if current == value:
                     del mod["votes"][username]
                 else:
