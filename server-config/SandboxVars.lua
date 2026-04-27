@@ -12,10 +12,10 @@ SandboxVars = {
     StartTime = 2,              -- 1=7am 2=9am 3=12pm 4=2pm 5=5pm 6=9pm 7=12am 8=2am 9=5am
 
     -- ── Utilities ──
-    WaterShut = 0,              -- 0=Never
-    WaterShutModifier = 0,
-    ElecShut = 0,               -- 0=Never
-    ElecShutModifier = 0,
+    WaterShut = 7,              -- 7=6-12 months (longest option)
+    WaterShutModifier = 9999,   -- effectively never
+    ElecShut = 7,
+    ElecShutModifier = 9999,
 
     -- ── Loot ──
     FoodLoot = 4,               -- 1=VeryRare to 5=Abundant
