@@ -117,16 +117,25 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return
             state = load_state()
+            self.send_json(state["mods"])
+
+        elif self.path == "/api/discord-votes":
+            session = self.require_auth()
+            if not session:
+                return
+            state = load_state()
             all_votes = get_all_discord_votes(state)
-            mods = []
+            result = {}
             for mod in state["mods"]:
-                m = dict(mod)
-                dv = all_votes.get(mod.get("discord_msg_id"), {})
-                m["voted_on_discord"] = session["discord_id"] in dv
-                m["discord_ups"] = sum(1 for v in dv.values() if v > 0)
-                m["discord_downs"] = sum(1 for v in dv.values() if v < 0)
-                mods.append(m)
-            self.send_json(mods)
+                msg_id = mod.get("discord_msg_id")
+                if msg_id:
+                    dv = all_votes.get(msg_id, {})
+                    result[mod["workshop_id"]] = {
+                        "voted": session["discord_id"] in dv,
+                        "ups": sum(1 for v in dv.values() if v > 0),
+                        "downs": sum(1 for v in dv.values() if v < 0),
+                    }
+            self.send_json(result)
 
         elif self.path.startswith("/api/lookup/"):
             if not self.require_auth():

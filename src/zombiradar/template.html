@@ -121,11 +121,34 @@ function renderLogin() {
     </div>`;
 }
 
+let discordVotes = {};
+
 async function render() {
   if (!currentUser) { renderLogin(); return; }
   const mods = await api("GET", "/api/mods");
   if (!mods) return;
 
+  renderMods(mods);
+
+  // Lazy-load Discord votes and missing info in parallel
+  api("GET", "/api/discord-votes").then(dv => {
+    if (dv) { discordVotes = dv; renderMods(mods); }
+  });
+
+  mods.forEach(m => {
+    if (!m.title || !m.image) {
+      api("GET", "/api/lookup/" + m.workshop_id).then(data => {
+        if (!data) return;
+        const row = document.querySelector('[data-wid="' + m.workshop_id + '"]');
+        if (!row) return;
+        if (data.title) { const el = row.querySelector('.mod-title-text'); if (el) el.textContent = data.title; }
+        if (data.image) { const el = row.querySelector('.mod-thumb'); if (el) el.src = data.image; }
+      });
+    }
+  });
+}
+
+function renderMods(mods) {
   const isAdmin = currentUser.role === "admin";
   const suggested = mods.filter(m => m.status === "suggested");
   const approved = mods.filter(m => m.status === "approved");
@@ -172,18 +195,6 @@ async function render() {
   }
 
   document.getElementById("app").innerHTML = html;
-
-  mods.forEach((m, i) => {
-    if (!m.title || !m.image) {
-      api("GET", "/api/lookup/" + m.workshop_id).then(data => {
-        if (!data) return;
-        const row = document.querySelector('[data-wid="' + m.workshop_id + '"]');
-        if (!row) return;
-        if (data.title) { const el = row.querySelector('.mod-title-text'); if (el) el.textContent = data.title; }
-        if (data.image) { const el = row.querySelector('.mod-thumb'); if (el) { el.src = data.image; el.classList.remove('mod-thumb-empty'); } }
-      });
-    }
-  });
 }
 
 function renderModList(list, allMods, isAdmin) {
@@ -191,9 +202,10 @@ function renderModList(list, allMods, isAdmin) {
     const idx = allMods.indexOf(m);
     const votes = m.votes || {};
     const myVote = votes[currentUser.username] || 0;
-    const hasVotedDiscord = m.voted_on_discord;
-    const dUps = m.discord_ups || 0;
-    const dDowns = m.discord_downs || 0;
+    const dv = discordVotes[m.workshop_id] || {};
+    const hasVotedDiscord = dv.voted || false;
+    const dUps = dv.ups || 0;
+    const dDowns = dv.downs || 0;
     const ups = Object.values(votes).filter(v => v > 0).length + dUps;
     const downs = Object.values(votes).filter(v => v < 0).length + dDowns;
     const score = ups - downs;
