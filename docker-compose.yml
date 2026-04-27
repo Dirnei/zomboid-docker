@@ -67,11 +67,10 @@ services:
     volumes:
       - server-saves:/home/steam/Zomboid:ro
 
-  mod-manager:
+  zombiradar:
     build:
-      context: ./server-config
-      dockerfile: Dockerfile.mod-manager
-    container_name: zomboid-mod-manager
+      context: ./src/zombiradar
+    container_name: zomboid-zombiradar
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1

@@ -1,0 +1,206 @@
+import json
+import os
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from hashlib import sha256
+
+from config import (
+    DISCORD_TOKEN, DISCORD_CHANNEL_ID, DISCORD_CLIENT_ID,
+    DISCORD_CLIENT_SECRET, OAUTH_REDIRECT_URI, MOD_MANAGER_ADMINS, CACHE_TTL,
+)
+from state import save_state
+
+SESSIONS = {}
+
+_discord_votes_cache = {}
+_discord_votes_cache_time = 0
+
+
+def discord_api(method, path, body=None, token=None, content_type="application/json"):
+    url = f"https://discord.com/api/v10{path}"
+    if content_type == "application/json":
+        data = json.dumps(body).encode() if body else None
+    else:
+        data = urllib.parse.urlencode(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, method=method, headers={
+        "Authorization": f"Bot {DISCORD_TOKEN}" if not token else f"Bearer {token}",
+        "Content-Type": content_type,
+        "User-Agent": "ZombiRadar/1.0",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    except Exception as e:
+        print(f"zombiradar: discord api error: {e}")
+        return None
+
+
+def exchange_code(code):
+    data = urllib.parse.urlencode({
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": OAUTH_REDIRECT_URI,
+        "client_id": DISCORD_CLIENT_ID,
+        "client_secret": DISCORD_CLIENT_SECRET,
+    }).encode()
+    req = urllib.request.Request(
+        "https://discord.com/api/v10/oauth2/token",
+        data=data,
+        method="POST",
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "ZombiRadar/1.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        print(f"zombiradar: oauth token exchange error: {e.code} {body}")
+        return None
+    except Exception as e:
+        print(f"zombiradar: oauth token exchange error: {e}")
+        return None
+
+
+def fetch_discord_user(access_token):
+    return discord_api("GET", "/users/@me", token=access_token)
+
+
+def ensure_discord_thread(state):
+    if state.get("discord_thread_id"):
+        return state["discord_thread_id"]
+    if not DISCORD_TOKEN or not DISCORD_CHANNEL_ID:
+        return None
+    result = discord_api("POST", f"/channels/{DISCORD_CHANNEL_ID}/threads", {
+        "name": "Mod-Vorschläge",
+        "type": 11,
+        "auto_archive_duration": 10080,
+    })
+    if result and "id" in result:
+        state["discord_thread_id"] = result["id"]
+        save_state(state)
+        return result["id"]
+    return None
+
+
+def post_mod_to_discord(state, mod, action="suggested"):
+    thread_id = ensure_discord_thread(state)
+    if not thread_id:
+        return
+    title = mod.get("title") or mod["workshop_id"]
+    url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={mod['workshop_id']}"
+    votes = mod.get("votes", {})
+    if isinstance(votes, dict):
+        ups = sum(1 for v in votes.values() if v > 0)
+        downs = sum(1 for v in votes.values() if v < 0)
+        score = ups - downs
+        vote_count = f"+{score}" if score > 0 else str(score)
+        voters = f"\U0001F44D {ups} \U0001F44E {downs}"
+    else:
+        vote_count = len(votes)
+        voters = ", ".join(votes) if votes else "keine"
+
+    messages = {
+        "suggested": (
+            f":new: **Neuer Mod-Vorschlag** von **{mod.get('suggested_by', '?')}**\n"
+            f"**{title}**\n{url}\nStimmen: {vote_count} ({voters})"
+        ),
+        "approved": (
+            f":white_check_mark: **Mod genehmigt!**\n"
+            f"**{title}**\n{url}\nStimmen: {vote_count} ({voters})\n"
+            f"*Wird beim nächsten Server-Neustart geladen.*"
+        ),
+        "rejected": (
+            f":x: **Mod abgelehnt**\n~~{title}~~\n{url}\nStimmen: {vote_count} ({voters})"
+        ),
+        "voted": (
+            f":thumbsup: **Mod-Vorschlag**\n"
+            f"**{title}**\n{url}\nStimmen: {vote_count} ({voters})"
+        ),
+    }
+    content = messages.get(action)
+    if not content:
+        return
+
+    msg_id = mod.get("discord_msg_id")
+    if msg_id:
+        discord_api("PATCH", f"/channels/{thread_id}/messages/{msg_id}", {"content": content})
+    else:
+        result = discord_api("POST", f"/channels/{thread_id}/messages", {"content": content})
+        if result and "id" in result:
+            mod["discord_msg_id"] = result["id"]
+            save_state(state)
+            if action == "suggested":
+                r1 = discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8D/%40me")
+                print(f"zombiradar: seed 👍: {r1}")
+                time.sleep(0.5)
+                r2 = discord_api("PUT", f"/channels/{thread_id}/messages/{result['id']}/reactions/%F0%9F%91%8E/%40me")
+                print(f"zombiradar: seed 👎: {r2}")
+
+
+def fetch_discord_votes(thread_id, msg_id):
+    if not thread_id or not msg_id:
+        return {}
+    bot_id = DISCORD_CLIENT_ID
+    ups = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8D")
+    up_ids = {u["id"] for u in (ups or []) if u["id"] != bot_id}
+    time.sleep(0.25)
+    downs = discord_api("GET", f"/channels/{thread_id}/messages/{msg_id}/reactions/%F0%9F%91%8E")
+    down_ids = {u["id"] for u in (downs or []) if u["id"] != bot_id}
+    both = up_ids & down_ids
+    votes = {}
+    for uid in up_ids - both:
+        votes[uid] = 1
+    for uid in down_ids - both:
+        votes[uid] = -1
+    for uid in both:
+        votes[uid] = 0
+    return votes
+
+
+def get_all_discord_votes(state):
+    global _discord_votes_cache, _discord_votes_cache_time
+    if time.time() - _discord_votes_cache_time < CACHE_TTL:
+        return _discord_votes_cache
+    thread_id = state.get("discord_thread_id")
+    if not thread_id:
+        return {}
+    msg_ids = [
+        mod.get("discord_msg_id")
+        for mod in state["mods"]
+        if mod.get("discord_msg_id")
+    ]
+    if not msg_ids:
+        return {}
+    result = {}
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(fetch_discord_votes, thread_id, mid): mid for mid in msg_ids}
+        for future in futures:
+            result[futures[future]] = future.result()
+    _discord_votes_cache = result
+    _discord_votes_cache_time = time.time()
+    return result
+
+
+def make_session(discord_user):
+    user_id = discord_user["id"]
+    username = discord_user.get("global_name") or discord_user["username"]
+    avatar = discord_user.get("avatar")
+    avatar_url = (
+        f"https://cdn.discordapp.com/avatars/{user_id}/{avatar}.png"
+        if avatar else None
+    )
+    role = "admin" if user_id in MOD_MANAGER_ADMINS else "user"
+    token = sha256(f"{user_id}{time.time()}{os.urandom(16).hex()}".encode()).hexdigest()[:32]
+    SESSIONS[token] = {
+        "discord_id": user_id,
+        "username": username,
+        "avatar_url": avatar_url,
+        "role": role,
+    }
+    return token
