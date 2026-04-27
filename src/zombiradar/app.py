@@ -3,6 +3,7 @@
 
 import json
 import re
+import threading
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
@@ -143,12 +144,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "admin only"}, 403)
                 return
             state = load_state()
+            all_discord = get_all_discord_votes(state)
             users = []
             suggested_mods = [m for m in state["mods"] if m["status"] == "suggested"]
             for uid, u in state.get("users", {}).items():
                 voted_on = 0
                 for mod in suggested_mods:
-                    if u["username"] in mod.get("votes", {}):
+                    web_voted = u["username"] in mod.get("votes", {})
+                    dv = all_discord.get(mod.get("discord_msg_id"), {})
+                    discord_voted = uid in dv
+                    if web_voted or discord_voted:
                         voted_on += 1
                 users.append({
                     "discord_id": uid,
@@ -156,6 +161,7 @@ class Handler(BaseHTTPRequestHandler):
                     "avatar_url": u.get("avatar_url"),
                     "last_login": u.get("last_login", "?"),
                     "banned": u.get("banned", False),
+                    "is_admin": uid in MOD_MANAGER_ADMINS,
                     "votes_cast": voted_on,
                     "votes_pending": len(suggested_mods) - voted_on,
                 })
@@ -281,8 +287,8 @@ class Handler(BaseHTTPRequestHandler):
         else:
             mod["votes"][username] = value
         save_state(state)
-        post_mod_to_discord(state, mod, "voted")
         self.send_json({"ok": True})
+        threading.Thread(target=post_mod_to_discord, args=(state, mod, "voted"), daemon=True).start()
 
     def _handle_stage(self, session):
         if session["role"] != "admin":
@@ -317,13 +323,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "admin only"}, 403)
             return
         uid = self.path.split("/")[3]
-        data = self.read_body()
-        banned = data.get("banned", True)
+        if uid in MOD_MANAGER_ADMINS:
+            self.send_json({"error": "Admins können nicht gesperrt werden"}, 403)
+            return
         state = load_state()
         if uid not in state.get("users", {}):
             self.send_json({"error": "user not found"}, 404)
             return
-        state["users"][uid]["banned"] = banned
+        state["users"][uid]["banned"] = not state["users"][uid].get("banned", False)
         save_state(state)
         self.send_json({"ok": True})
 

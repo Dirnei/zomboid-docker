@@ -92,6 +92,12 @@
   .toggle-btn { background: none; border: 1px solid #333; color: #888; cursor: pointer;
                 font-size: 0.85rem; padding: 0.4rem 0.8rem; }
   .toggle-btn:hover { border-color: #e94560; color: #e0e0e0; }
+  .nav-links { display: flex; gap: 0.75rem; align-items: center; }
+  .nav-links a { color: #888; text-decoration: none; font-size: 0.9rem; padding: 0.3rem 0.6rem;
+                 border: 1px solid transparent; border-radius: 4px; }
+  .nav-links a:hover { color: #e0e0e0; border-color: #333; }
+  .badge-admin { background: #e94560; color: white; font-size: 0.65rem; padding: 0.1rem 0.4rem;
+                 border-radius: 3px; margin-left: 0.3rem; text-transform: uppercase; vertical-align: middle; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
                    display: flex; align-items: center; justify-content: center; padding: 2rem; }
   .modal { background: #16213e; border-radius: 12px; max-width: 700px; width: 100%;
@@ -250,8 +256,12 @@ function renderMods(mods) {
   let html = `
     <div class="header">
       <div class="header-left" style="display:flex;align-items:center;gap:0.75rem"><img src="/logo.png" class="logo-sm" onerror="this.style.display='none'"><div><h1>ZombiRadar</h1><p class="subtitle">Mods vorschlagen, abstimmen & genehmigen</p></div></div>
-      <div class="user-info">${avatarHtml}<strong>${currentUser.username}</strong> (${isAdmin ? "Admin" : "Spieler"})
-        <a href="/api/logout">Logout</a></div>
+      <div class="user-info">${avatarHtml}<strong>${currentUser.username}</strong>
+        <div class="nav-links">
+          ${isAdmin ? '<a href="#" onclick="showUsers();return false">Benutzer</a>' : ''}
+          <a href="/api/logout">Logout</a>
+        </div>
+      </div>
     </div>
     <div class="notice">Genehmigte Mods werden beim nächsten Server-Neustart geladen.</div>
     <div class="card">
@@ -271,11 +281,6 @@ function renderMods(mods) {
 
   if (!suggested.length && !approved.length && !rejected.length) {
     html += '<div class="card"><p class="empty">Noch keine Mods vorgeschlagen.</p></div>';
-  }
-
-  if (isAdmin) {
-    html += '<div class="card"><h2><button class="toggle-btn" onclick="toggleUsers()">Benutzer verwalten</button></h2>' +
-      '<div id="user-section" style="display:none"><div id="user-list"><span class="loading">Laden...</span></div></div></div>';
   }
 
   document.getElementById("app").innerHTML = html;
@@ -388,7 +393,7 @@ function applyOptimisticVote(idx, value) {
 
 async function vote(idx, value) {
   applyOptimisticVote(idx, value);
-  api("POST", "/api/mods/" + idx + "/vote", { value: value });
+  await api("POST", "/api/mods/" + idx + "/vote", { value: value });
 }
 
 async function stage(idx, status) {
@@ -465,10 +470,10 @@ function showDetail(wid) {
   }
 }
 
-function modalVote(idx, value) {
+async function modalVote(idx, value) {
   applyOptimisticVote(idx, value);
   showDetail(currentMods[idx].workshop_id);
-  api("POST", "/api/mods/" + idx + "/vote", { value: value });
+  await api("POST", "/api/mods/" + idx + "/vote", { value: value });
 }
 
 
@@ -478,41 +483,38 @@ function closeDetail() {
 
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetail(); });
 
-async function toggleUsers() {
-  const section = document.getElementById("user-section");
-  if (!section) return;
-  if (section.style.display === "none") {
-    section.style.display = "block";
-    loadUsers();
-  } else {
-    section.style.display = "none";
-  }
-}
-
-async function loadUsers() {
+async function showUsers() {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
+    '<div class="modal"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
+    '<div class="modal-body"><h2>Benutzer</h2><div id="user-list"><span class="loading">Laden...</span></div></div></div></div>';
+  const users = await api("GET", "/api/users");
   const el = document.getElementById("user-list");
   if (!el) return;
-  const users = await api("GET", "/api/users");
   if (!users || users.error) { el.innerHTML = '<span class="empty">Fehler beim Laden</span>'; return; }
   if (!users.length) { el.innerHTML = '<span class="empty">Keine Benutzer</span>'; return; }
   el.innerHTML = users.map(u => {
     const avatar = u.avatar_url ? '<img class="avatar" src="' + u.avatar_url + '">' : '';
     const nameCls = u.banned ? "user-name banned" : "user-name";
+    const adminBadge = u.is_admin ? '<span class="badge-admin">Admin</span>' : '';
     const pending = u.votes_pending > 0 ? '<span class="pending">' + u.votes_pending + ' offen</span>' : '<span style="color:#4caf50">alles abgestimmt</span>';
-    const btn = u.banned
-      ? '<button class="btn-unban" onclick="toggleBan(\'' + u.discord_id + '\',false)">Entsperren</button>'
-      : '<button class="btn-ban" onclick="toggleBan(\'' + u.discord_id + '\',true)">Sperren</button>';
+    let btn = '';
+    if (!u.is_admin) {
+      btn = u.banned
+        ? '<button class="btn-unban" onclick="toggleBan(\'' + u.discord_id + '\')">Entsperren</button>'
+        : '<button class="btn-ban" onclick="toggleBan(\'' + u.discord_id + '\')">Sperren</button>';
+    }
     return '<div class="user-row">' + avatar +
-      '<div class="' + nameCls + '">' + u.username + '</div>' +
+      '<div class="' + nameCls + '">' + u.username + adminBadge + '</div>' +
       '<div class="user-stats">' + u.votes_cast + ' Stimmen · ' + pending + '</div>' +
-      '<div class="user-stats">Letzter Login: ' + u.last_login + '</div>' +
+      '<div class="user-stats">Login: ' + u.last_login + '</div>' +
       btn + '</div>';
   }).join("");
 }
 
-async function toggleBan(uid, banned) {
-  await api("POST", "/api/users/" + uid + "/ban", { banned: banned });
-  loadUsers();
+async function toggleBan(uid) {
+  await api("POST", "/api/users/" + uid + "/ban", {});
+  showUsers();
 }
 
 checkSession();
