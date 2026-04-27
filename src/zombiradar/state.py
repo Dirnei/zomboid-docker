@@ -7,8 +7,10 @@ from config import STATE_FILE, MODS_FILE
 def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE) as f:
-            return json.load(f)
-    return {"mods": [], "discord_thread_id": None}
+            state = json.load(f)
+        state.setdefault("users", {})
+        return state
+    return {"mods": [], "discord_thread_id": None, "users": {}}
 
 
 def save_state(state):

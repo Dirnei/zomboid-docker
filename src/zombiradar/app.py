@@ -137,6 +137,30 @@ class Handler(BaseHTTPRequestHandler):
                     }
             self.send_json(result)
 
+        elif self.path == "/api/users":
+            session = self.require_auth()
+            if not session or session["role"] != "admin":
+                self.send_json({"error": "admin only"}, 403)
+                return
+            state = load_state()
+            users = []
+            suggested_mods = [m for m in state["mods"] if m["status"] == "suggested"]
+            for uid, u in state.get("users", {}).items():
+                voted_on = 0
+                for mod in suggested_mods:
+                    if u["username"] in mod.get("votes", {}):
+                        voted_on += 1
+                users.append({
+                    "discord_id": uid,
+                    "username": u["username"],
+                    "avatar_url": u.get("avatar_url"),
+                    "last_login": u.get("last_login", "?"),
+                    "banned": u.get("banned", False),
+                    "votes_cast": voted_on,
+                    "votes_pending": len(suggested_mods) - voted_on,
+                })
+            self.send_json(users)
+
         elif self.path.startswith("/api/lookup/"):
             if not self.require_auth():
                 return
@@ -171,6 +195,8 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_vote(session)
         elif re.match(r"/api/mods/\d+/stage$", self.path):
             self._handle_stage(session)
+        elif re.match(r"/api/users/.+/ban$", self.path):
+            self._handle_ban(session)
         else:
             self.send_json({"error": "not found"}, 404)
 
@@ -233,6 +259,10 @@ class Handler(BaseHTTPRequestHandler):
         if not (0 <= idx < len(state["mods"])):
             self.send_json({"error": "not found"}, 404)
             return
+        user_entry = state.get("users", {}).get(session["discord_id"], {})
+        if user_entry.get("banned"):
+            self.send_json({"error": "Du wurdest vom Voting ausgeschlossen"}, 403)
+            return
         mod = state["mods"][idx]
         data = self.read_body()
         value = data.get("value", 0)
@@ -280,6 +310,21 @@ class Handler(BaseHTTPRequestHandler):
             post_mod_to_discord(state, mod, new_status)
         save_state(state)
         sync_mods_txt(state)
+        self.send_json({"ok": True})
+
+    def _handle_ban(self, session):
+        if session["role"] != "admin":
+            self.send_json({"error": "admin only"}, 403)
+            return
+        uid = self.path.split("/")[3]
+        data = self.read_body()
+        banned = data.get("banned", True)
+        state = load_state()
+        if uid not in state.get("users", {}):
+            self.send_json({"error": "user not found"}, 404)
+            return
+        state["users"][uid]["banned"] = banned
+        save_state(state)
         self.send_json({"ok": True})
 
 

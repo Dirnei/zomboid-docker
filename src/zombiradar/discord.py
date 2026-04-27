@@ -188,6 +188,7 @@ def get_all_discord_votes(state):
 
 
 def make_session(discord_user):
+    from state import load_state, save_state
     user_id = discord_user["id"]
     username = discord_user.get("global_name") or discord_user["username"]
     avatar = discord_user.get("avatar")
@@ -203,4 +204,12 @@ def make_session(discord_user):
         "avatar_url": avatar_url,
         "role": role,
     }
+    state = load_state()
+    state["users"][user_id] = {
+        "username": username,
+        "avatar_url": avatar_url,
+        "last_login": time.strftime("%Y-%m-%d %H:%M"),
+        "banned": state.get("users", {}).get(user_id, {}).get("banned", False),
+    }
+    save_state(state)
     return token
