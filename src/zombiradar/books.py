@@ -43,6 +43,11 @@ SKILL_BOOKS = [
         {"id": "fish5", "vol": 5, "en": "Master Fishing", "de": "Meister-Angeln"},
     ]},
     {"skill": "Foraging / Sammeln", "books": [
+        {"id": "forage1", "vol": 1, "en": "Foraging for Beginners", "de": "Sammeln für Anfänger"},
+        {"id": "forage2", "vol": 2, "en": "Foraging for Intermediates", "de": "Sammeln für Fortgeschrittene"},
+        {"id": "forage3", "vol": 3, "en": "Advanced Foraging", "de": "Fortgeschrittenes Sammeln"},
+        {"id": "forage4", "vol": 4, "en": "Expert Foraging", "de": "Experten-Sammeln"},
+        {"id": "forage5", "vol": 5, "en": "Master Foraging", "de": "Meister-Sammeln"},
         {"id": "herb", "vol": None, "en": "The Herbalist", "de": "Der Kräuterkundige"},
     ]},
     {"skill": "Mechanics / Mechanik", "books": [
