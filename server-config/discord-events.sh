@@ -111,13 +111,24 @@ manage_tail() {
         else
             # Server restarted — wait for a newer log than the one we were watching
             echo "discord-events: [${label}] waiting for newer log..."
-            while true; do
-                log_file=$(find "${LOG_DIR}" -name "$pattern" -newer "$prev_log" 2>/dev/null | head -1)
-                [ -n "$log_file" ] && break
-                sleep 5
-            done
             > "$PLAYER_FILE"
             update_player_list
+            if [ -f "$prev_log" ]; then
+                # Reference file exists — find something newer
+                while true; do
+                    log_file=$(find "${LOG_DIR}" -name "$pattern" -newer "$prev_log" 2>/dev/null | head -1)
+                    [ -n "$log_file" ] && break
+                    sleep 5
+                done
+            else
+                # Reference file gone (volume wiped) — wait for any matching file
+                touch /tmp/discord-start-marker
+                while true; do
+                    log_file=$(find "${LOG_DIR}" -name "$pattern" -newer /tmp/discord-start-marker 2>/dev/null | head -1)
+                    [ -n "$log_file" ] && break
+                    sleep 5
+                done
+            fi
             tail_start="-n +1"
             echo "discord-events: [${label}] switching to ${log_file} (from start)"
         fi
@@ -130,6 +141,12 @@ manage_tail() {
         # Poll for a newer log file (server restart detection)
         while kill -0 $tail_pid 2>/dev/null; do
             sleep 30
+            if [ ! -f "$log_file" ]; then
+                echo "discord-events: [${label}] log file disappeared (wipe?)"
+                kill $tail_pid 2>/dev/null
+                wait $tail_pid 2>/dev/null
+                break
+            fi
             local newer
             newer=$(find "${LOG_DIR}" -name "$pattern" -newer "$log_file" 2>/dev/null | head -1)
             if [ -n "$newer" ]; then
