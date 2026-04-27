@@ -42,7 +42,8 @@
               border-bottom: 1px solid #222; gap: 1rem; }
   .mod-item:last-child { border-bottom: none; }
   .mod-thumb { width: 64px; height: 64px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
-  .mod-thumb-empty { background: #0f3460; }
+  .mod-thumb { background: #0f3460; }
+  .mod-thumb[src=""], .mod-thumb:not([src]) { content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect width='64' height='64' fill='%230f3460'/%3E%3Cpath d='M20 18h8v4a4 4 0 0 0 8 0v-4h8a2 2 0 0 1 2 2v8h-4a4 4 0 0 0 0 8h4v8a2 2 0 0 1-2 2h-8v-4a4 4 0 0 0-8 0v4h-8a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2z' fill='%23333f5e'/%3E%3C/svg%3E"); }
   .mod-info { flex: 1; min-width: 0; }
   .mod-title { color: #e0e0e0; font-weight: 500; }
   .mod-title a { color: #5ba4e6; text-decoration: none; }
