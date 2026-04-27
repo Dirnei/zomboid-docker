@@ -74,6 +74,7 @@ services:
     container_name: zomboid-mod-manager
     restart: unless-stopped
     environment:
+      - PYTHONUNBUFFERED=1
       - MODS_FILE=/data/mods.txt
       - STATE_FILE=/data/state.json
       - DISCORD_TOKEN=${DISCORD_TOKEN}
