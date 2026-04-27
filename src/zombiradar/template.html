@@ -98,6 +98,19 @@
   .nav-links a:hover { color: #e0e0e0; border-color: #333; }
   .badge-admin { background: #e94560; color: white; font-size: 0.65rem; padding: 0.1rem 0.4rem;
                  border-radius: 3px; margin-left: 0.3rem; text-transform: uppercase; vertical-align: middle; }
+  .book-group { margin-bottom: 1.5rem; }
+  .book-group h3 { color: #e94560; font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .book-group .progress { color: #888; font-size: 0.8rem; margin-left: 0.5rem; }
+  .book-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0;
+               cursor: pointer; user-select: none; }
+  .book-item:hover { color: #fff; }
+  .book-check { width: 18px; height: 18px; border: 1px solid #333; border-radius: 3px;
+                display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+                background: #0f3460; font-size: 0.75rem; }
+  .book-check.checked { background: #1a3a1a; border-color: #4caf50; color: #4caf50; }
+  .book-name { font-size: 0.9rem; }
+  .book-name.checked { color: #666; text-decoration: line-through; }
+  .book-by { color: #666; font-size: 0.75rem; margin-left: auto; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
                    display: flex; align-items: center; justify-content: center; padding: 2rem; }
   .modal { background: #16213e; border-radius: 12px; max-width: 700px; width: 100%;
@@ -275,6 +288,7 @@ function renderMods(mods) {
       <div class="header-left" style="display:flex;align-items:center;gap:0.75rem"><img src="/logo.png" class="logo-sm" onerror="this.style.display='none'"><div><h1>ZombiRadar</h1><p class="subtitle">Mods vorschlagen, abstimmen & genehmigen</p></div></div>
       <div class="user-info">${avatarHtml}<strong>${currentUser.username}</strong>
         <div class="nav-links">
+          <a href="#" onclick="showBooks();return false">Bücher</a>
           ${isAdmin ? '<a href="#" onclick="refreshDiscordVotes();return false" title="Discord-Votes neu laden">&#x21bb;</a>' : ''}
           ${isAdmin ? '<a href="#" onclick="showUsers();return false">Benutzer</a>' : ''}
           <a href="/api/logout">Logout</a>
@@ -540,6 +554,46 @@ async function showUsers() {
 async function toggleBan(uid) {
   await api("POST", "/api/users/" + uid + "/ban", {});
   showUsers();
+}
+
+async function showBooks() {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
+    '<div class="modal"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
+    '<div class="modal-body"><h2>Skill-Bücher</h2><div id="book-list"><span class="loading">Laden...</span></div></div></div></div>';
+  const data = await api("GET", "/api/books");
+  if (!data) return;
+  renderBooks(data);
+}
+
+function renderBooks(data) {
+  const el = document.getElementById("book-list");
+  if (!el) return;
+  const totalBooks = data.reduce((s, g) => s + g.books.length, 0);
+  const totalChecked = data.reduce((s, g) => s + g.books.filter(b => b.checked).length, 0);
+  let html = '<div class="mod-meta" style="margin-bottom:1rem">' + totalChecked + ' / ' + totalBooks + ' gefunden</div>';
+  html += data.map(group => {
+    const checked = group.books.filter(b => b.checked).length;
+    const total = group.books.length;
+    return '<div class="book-group">' +
+      '<h3>' + group.skill + ' <span class="progress">' + checked + '/' + total + '</span></h3>' +
+      group.books.map(b => {
+        const checkCls = b.checked ? "book-check checked" : "book-check";
+        const nameCls = b.checked ? "book-name checked" : "book-name";
+        const icon = b.checked ? "✓" : "";
+        const by = b.checked_by ? '<span class="book-by">' + b.checked_by + '</span>' : '';
+        return '<div class="book-item" onclick="toggleBook(\'' + b.name.replace(/'/g, "\\'") + '\')">' +
+          '<div class="' + checkCls + '">' + icon + '</div>' +
+          '<div class="' + nameCls + '">' + b.name + '</div>' + by + '</div>';
+      }).join("") + '</div>';
+  }).join("");
+  el.innerHTML = html;
+}
+
+async function toggleBook(name) {
+  await api("POST", "/api/books/toggle", { name: name });
+  const data = await api("GET", "/api/books");
+  if (data) renderBooks(data);
 }
 
 checkSession();

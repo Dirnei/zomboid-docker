@@ -9,6 +9,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
 from pathlib import Path
 
+from books import SKILL_BOOKS
 from config import PORT, MOD_MANAGER_ADMINS, OAUTH_AUTHORIZE_URL
 from state import load_state, save_state, sync_mods_txt
 from steam import fetch_workshop_info
@@ -214,6 +215,24 @@ class Handler(BaseHTTPRequestHandler):
                     break
             self.send_json({"workshop_id": wid, **info})
 
+        elif self.path == "/api/books":
+            if not self.require_auth():
+                return
+            state = load_state()
+            checked = state.get("books", {})
+            result = []
+            for group in SKILL_BOOKS:
+                books = []
+                for name in group["books"]:
+                    entry = checked.get(name)
+                    books.append({
+                        "name": name,
+                        "checked": entry is not None,
+                        "checked_by": entry["by"] if entry else None,
+                    })
+                result.append({"skill": group["skill"], "books": books})
+            self.send_json(result)
+
         else:
             self.send_html()
 
@@ -232,6 +251,17 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_stage(session)
         elif re.match(r"/api/users/.+/ban$", self.path):
             self._handle_ban(session)
+        elif self.path == "/api/books/toggle":
+            data = self.read_body()
+            name = data.get("name", "")
+            state = load_state()
+            books = state.setdefault("books", {})
+            if name in books:
+                del books[name]
+            else:
+                books[name] = {"by": session["username"]}
+            save_state(state)
+            self.send_json({"ok": True})
         else:
             self.send_json({"error": "not found"}, 404)
 
