@@ -33,7 +33,10 @@ patch_ini() {
 patch_key() {
     local key="$1" value="$2"
     if grep -q "^${key}=" "$SERVER_INI"; then
-        sed -i "s|^${key}=.*|${key}=${value}|" "$SERVER_INI"
+        # Delete old line and append new one (avoids sed special char issues)
+        grep -v "^${key}=" "$SERVER_INI" > "${SERVER_INI}.tmp"
+        echo "${key}=${value}" >> "${SERVER_INI}.tmp"
+        mv "${SERVER_INI}.tmp" "$SERVER_INI"
         echo "  updated: ${key}"
     else
         echo "${key}=${value}" >> "$SERVER_INI"
