@@ -132,8 +132,8 @@ services:
 
 networks:
   lksn:
-    external:
-      name: lksn
+    name: lksn
+    external: true
 
 volumes:
   server-data:
