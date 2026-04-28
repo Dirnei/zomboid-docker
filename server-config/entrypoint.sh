@@ -16,7 +16,7 @@ patch_ini() {
     [ -n "$MAX_PLAYERS" ]        && patch_key "MaxPlayers" "$MAX_PLAYERS"
     [ -n "$DISCORD_TOKEN" ]      && patch_key "DiscordToken" "$DISCORD_TOKEN"
     [ -n "$DISCORD_CHANNEL_ID" ] && patch_key "DiscordChannelID" "$DISCORD_CHANNEL_ID"
-    [ -n "$MOD_IDS" ]            && patch_key "Mods" "$MOD_IDS"
+    [ -n "$MOD_NAMES" ]            && patch_key "Mods" "$MOD_NAMES"
     [ -n "$MOD_WORKSHOP_IDS" ]   && patch_key "WorkshopItems" "$MOD_WORKSHOP_IDS"
 
     # File-based overrides
@@ -66,10 +66,10 @@ discover_mod_id() {
 
 # Pre-scan all already-downloaded workshop mods
 WORKSHOP_DIR="/home/steam/ZomboidDedicatedServer/steamapps/workshop/content/108600"
-declare -A KNOWN_MOD_IDS
+declare -A KNOWN_MOD_NAMES
 
 prescan_mods() {
-    KNOWN_MOD_IDS=()
+    KNOWN_MOD_NAMES=()
     [ ! -d "$WORKSHOP_DIR" ] && return
     for dir in "$WORKSHOP_DIR"/*/; do
         [ ! -d "$dir" ] && continue
@@ -78,13 +78,13 @@ prescan_mods() {
         mod_info=$(find "$dir" -name "mod.info" -print -quit 2>/dev/null)
         if [ -n "$mod_info" ]; then
             mid=$(grep -oP '^id=\K.+' "$mod_info" | head -1 | tr -d '[:space:]')
-            [ -n "$mid" ] && KNOWN_MOD_IDS["$wid"]="$mid"
+            [ -n "$mid" ] && KNOWN_MOD_NAMES["$wid"]="$mid"
         fi
     done
-    [ ${#KNOWN_MOD_IDS[@]} -gt 0 ] && echo "entrypoint: pre-scan found ${#KNOWN_MOD_IDS[@]} downloaded mod(s)"
+    [ ${#KNOWN_MOD_NAMES[@]} -gt 0 ] && echo "entrypoint: pre-scan found ${#KNOWN_MOD_NAMES[@]} downloaded mod(s)"
 }
 
-# Parse mods.txt into MOD_WORKSHOP_IDS and MOD_IDS
+# Parse mods.txt into MOD_WORKSHOP_IDS and MOD_NAMES
 MODS_FILE="/overrides/mods.txt"
 load_mods() {
     [ ! -f "$MODS_FILE" ] && return
@@ -106,7 +106,7 @@ load_mods() {
         [ -z "$wid" ] && continue
         # Use pre-scan cache, then fall back to direct discovery
         if [ -z "$mid" ]; then
-            mid="${KNOWN_MOD_IDS[$wid]}"
+            mid="${KNOWN_MOD_NAMES[$wid]}"
         fi
         if [ -z "$mid" ]; then
             mid=$(discover_mod_id "$wid")
@@ -129,9 +129,9 @@ load_mods() {
     fi
     if [ -n "$workshop_ids" ]; then
         export MOD_WORKSHOP_IDS="$workshop_ids"
-        export MOD_IDS="$mod_ids"
+        export MOD_NAMES="$mod_ids"
         echo "entrypoint: MOD_WORKSHOP_IDS=${MOD_WORKSHOP_IDS}"
-        echo "entrypoint: MOD_IDS=${MOD_IDS}"
+        echo "entrypoint: MOD_NAMES=${MOD_NAMES}"
     fi
 }
 load_mods
@@ -163,7 +163,7 @@ if $FIRST_BOOT; then
 fi
 
 # Watch for workshop downloads and auto-discover Mod IDs
-SAVED_MOD_IDS="$MOD_IDS"
+SAVED_MOD_NAMES="$MOD_NAMES"
 {
     LOG_DIR="/home/steam/Zomboid/Logs"
     # Wait for log file
@@ -186,8 +186,8 @@ SAVED_MOD_IDS="$MOD_IDS"
                 if [ $downloads_seen -gt 0 ]; then
                     echo "entrypoint: ${downloads_seen} mod(s) downloaded, re-discovering..."
                     load_mods
-                    if [ "$MOD_IDS" != "$SAVED_MOD_IDS" ] && [ -n "$MOD_IDS" ]; then
-                        echo "entrypoint: new MOD_IDS=${MOD_IDS}"
+                    if [ "$MOD_NAMES" != "$SAVED_MOD_NAMES" ] && [ -n "$MOD_NAMES" ]; then
+                        echo "entrypoint: new MOD_NAMES=${MOD_NAMES}"
                         echo "entrypoint: restarting server to activate mods..."
                         kill $SERVER_PID 2>/dev/null
                     fi
@@ -204,8 +204,8 @@ kill $WATCHER_PID 2>/dev/null
 
 # If server was killed for mod re-discovery, restart with updated IDs
 load_mods
-if [ "$MOD_IDS" != "$SAVED_MOD_IDS" ] && [ -n "$MOD_IDS" ]; then
-    echo "entrypoint: restarting with MOD_IDS=${MOD_IDS}"
+if [ "$MOD_NAMES" != "$SAVED_MOD_NAMES" ] && [ -n "$MOD_NAMES" ]; then
+    echo "entrypoint: restarting with MOD_NAMES=${MOD_NAMES}"
     /home/steam/run_server.sh &
     wait $!
 fi
