@@ -1,4 +1,2 @@
 #!/bin/bash
-set -e
-(cd "$(dirname "$0")/.." && git pull && docker compose up -d --build zomboid)
-echo "zomboid updated."
+"$(dirname "$0")/_update.sh" zomboid
