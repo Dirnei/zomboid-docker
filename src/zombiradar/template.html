@@ -906,7 +906,7 @@ function updateBoardToggle() {
   const toggle = document.getElementById("board-type-toggle");
   if (!toggle) return;
   const buttons = toggle.querySelectorAll("button");
-  buttons[0].className = boardType === "suche" ? "btn btn-outline-danger active" : "btn btn-outline-danger";
+  buttons[0].className = boardType === "suche" ? "btn btn-outline-success active" : "btn btn-outline-success";
   buttons[1].className = boardType === "biete" ? "btn btn-outline-success active" : "btn btn-outline-success";
 }
 
