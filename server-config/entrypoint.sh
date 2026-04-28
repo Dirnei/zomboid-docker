@@ -59,10 +59,31 @@ discover_mod_id() {
     done
 }
 
+# Pre-scan all already-downloaded workshop mods
+WORKSHOP_DIR="/home/steam/ZomboidDedicatedServer/steamapps/workshop/content/108600"
+declare -A KNOWN_MOD_IDS
+
+prescan_mods() {
+    KNOWN_MOD_IDS=()
+    [ ! -d "$WORKSHOP_DIR" ] && return
+    for dir in "$WORKSHOP_DIR"/*/; do
+        [ ! -d "$dir" ] && continue
+        local wid mid mod_info
+        wid=$(basename "$dir")
+        mod_info=$(find "$dir" -name "mod.info" -print -quit 2>/dev/null)
+        if [ -n "$mod_info" ]; then
+            mid=$(grep -oP '^id=\K.+' "$mod_info" | head -1 | tr -d '[:space:]')
+            [ -n "$mid" ] && KNOWN_MOD_IDS["$wid"]="$mid"
+        fi
+    done
+    [ ${#KNOWN_MOD_IDS[@]} -gt 0 ] && echo "entrypoint: pre-scan found ${#KNOWN_MOD_IDS[@]} downloaded mod(s)"
+}
+
 # Parse mods.txt into MOD_WORKSHOP_IDS and MOD_IDS
 MODS_FILE="/overrides/mods.txt"
 load_mods() {
     [ ! -f "$MODS_FILE" ] && return
+    prescan_mods
     local workshop_ids="" mod_ids=""
     while IFS= read -r line; do
         [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
@@ -74,19 +95,22 @@ load_mods() {
         fi
         mid=$(echo "$line" | awk '{print $2}')
         [ -z "$wid" ] && continue
+        # Use pre-scan cache, then fall back to direct discovery
+        if [ -z "$mid" ]; then
+            mid="${KNOWN_MOD_IDS[$wid]}"
+        fi
         if [ -z "$mid" ]; then
             mid=$(discover_mod_id "$wid")
-            [ -n "$mid" ] && echo "entrypoint: auto-discovered Mod ID for ${wid}: ${mid}"
         fi
+        [ -n "$mid" ] && echo "entrypoint: ${wid} → ${mid}"
         workshop_ids="${workshop_ids:+${workshop_ids};}${wid}"
         [ -n "$mid" ] && mod_ids="${mod_ids:+${mod_ids};}${mid}"
     done < "$MODS_FILE"
     if [ -n "$workshop_ids" ]; then
         export MOD_WORKSHOP_IDS="$workshop_ids"
         export MOD_IDS="$mod_ids"
-        echo "entrypoint: loaded mods"
-        echo "  MOD_WORKSHOP_IDS=${MOD_WORKSHOP_IDS}"
-        echo "  MOD_IDS=${MOD_IDS}"
+        echo "entrypoint: MOD_WORKSHOP_IDS=${MOD_WORKSHOP_IDS}"
+        echo "entrypoint: MOD_IDS=${MOD_IDS}"
     fi
 }
 load_mods
@@ -117,19 +141,39 @@ if $FIRST_BOOT; then
     SERVER_PID=$!
 fi
 
-# After server starts, check if new mods need Mod ID discovery
+# Watch for workshop downloads and auto-discover Mod IDs
 SAVED_MOD_IDS="$MOD_IDS"
 {
     LOG_DIR="/home/steam/Zomboid/Logs"
+    # Wait for log file
     while ! ls "${LOG_DIR}"/*_DebugLog-server.txt &>/dev/null; do sleep 5; done
     LOG_FILE=$(ls -t "${LOG_DIR}"/*_DebugLog-server.txt | head -1)
-    grep -q "SERVER STARTED" "$LOG_FILE" 2>/dev/null || tail -F "$LOG_FILE" 2>/dev/null | grep -m1 "SERVER STARTED" > /dev/null
-    load_mods
-    if [ "$MOD_IDS" != "$SAVED_MOD_IDS" ] && [ -n "$MOD_IDS" ]; then
-        echo "entrypoint: new Mod IDs discovered: ${MOD_IDS}"
-        echo "entrypoint: restarting server to activate new mods..."
-        kill $SERVER_PID 2>/dev/null
-    fi
+
+    # Watch log for workshop installs and server start
+    downloads_seen=0
+    tail -n +1 -F "$LOG_FILE" 2>/dev/null | while read -r line; do
+        case "$line" in
+            *"Workshop:"*"installed to"*)
+                wid=$(echo "$line" | grep -oP 'Workshop: \K[0-9]+')
+                path=$(echo "$line" | grep -oP 'installed to \K.+')
+                if [ -n "$wid" ] && [ -n "$path" ]; then
+                    mid=$(find "$path" -name "mod.info" -exec grep -oP '^id=\K.+' {} \; 2>/dev/null | head -1 | tr -d '[:space:]')
+                    echo "entrypoint: workshop ${wid} installed → Mod ID: ${mid:-NOT FOUND}"
+                    downloads_seen=$((downloads_seen + 1))
+                fi ;;
+            *"SERVER STARTED"*)
+                if [ $downloads_seen -gt 0 ]; then
+                    echo "entrypoint: ${downloads_seen} mod(s) downloaded, re-discovering..."
+                    load_mods
+                    if [ "$MOD_IDS" != "$SAVED_MOD_IDS" ] && [ -n "$MOD_IDS" ]; then
+                        echo "entrypoint: new MOD_IDS=${MOD_IDS}"
+                        echo "entrypoint: restarting server to activate mods..."
+                        kill $SERVER_PID 2>/dev/null
+                    fi
+                fi
+                break ;;
+        esac
+    done
 } &
 WATCHER_PID=$!
 
@@ -137,9 +181,10 @@ WATCHER_PID=$!
 wait $SERVER_PID 2>/dev/null
 kill $WATCHER_PID 2>/dev/null
 
-# If MOD_IDS changed, server was killed for restart
+# If server was killed for mod re-discovery, restart with updated IDs
 load_mods
 if [ "$MOD_IDS" != "$SAVED_MOD_IDS" ] && [ -n "$MOD_IDS" ]; then
+    echo "entrypoint: restarting with MOD_IDS=${MOD_IDS}"
     /home/steam/run_server.sh &
     wait $!
 fi
