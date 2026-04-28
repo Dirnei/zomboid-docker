@@ -84,10 +84,13 @@ services:
       - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
       - MOD_MANAGER_URL=${MOD_MANAGER_URL}
       - MOD_MANAGER_ADMINS=${MOD_MANAGER_ADMINS}
+      - BOARD_STALE_DAYS=${BOARD_STALE_DAYS:-7}
     volumes:
       - ./mods.txt:/data/mods.txt
       - mod-manager-data:/data
       - discord-data:/discord-data:ro
+      - ./server-config/SandboxVars.lua:/config/SandboxVars.lua
+      - ./server-config/overrides.ini:/config/overrides.ini
     networks:
       lksn: {}
 

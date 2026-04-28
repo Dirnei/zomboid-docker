@@ -22,3 +22,6 @@ OAUTH_AUTHORIZE_URL = (
 )
 
 CACHE_TTL = 300
+BOARD_STALE_DAYS = int(os.environ.get("BOARD_STALE_DAYS", "7"))
+SANDBOX_FILE = os.environ.get("SANDBOX_FILE", "/config/SandboxVars.lua")
+OVERRIDES_FILE = os.environ.get("OVERRIDES_FILE", "/config/overrides.ini")

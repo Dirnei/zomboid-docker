@@ -10,12 +10,15 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 
 from books import SKILL_BOOKS
+from posts import create_post, list_posts, delete_post
+from server_config import get_current_config, create_proposal, apply_proposal
 from config import PORT, MOD_MANAGER_ADMINS, OAUTH_AUTHORIZE_URL
 from state import load_state, save_state, sync_mods_txt
 from steam import fetch_workshop_info
 from discord import (
     discord_api, exchange_code, fetch_discord_user, post_mod_to_discord,
     get_all_discord_votes, make_session, SESSIONS, discord_user_cache,
+    post_to_thread,
 )
 
 HTML = (Path(__file__).parent / "template.html").read_text()
@@ -263,6 +266,23 @@ class Handler(BaseHTTPRequestHandler):
                 "players": players,
             })
 
+        elif self.path == "/api/posts":
+            if not self.require_auth():
+                return
+            state = load_state()
+            self.send_json(list_posts(state))
+
+        elif self.path == "/api/config":
+            if not self.require_auth():
+                return
+            self.send_json(get_current_config())
+
+        elif self.path == "/api/config/proposals":
+            if not self.require_auth():
+                return
+            state = load_state()
+            self.send_json(state.get("config_proposals", []))
+
         else:
             self.send_html()
 
@@ -291,6 +311,102 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 books[book_id] = {"by": session["username"]}
             save_state(state)
+            self.send_json({"ok": True})
+        elif self.path == "/api/posts":
+            data = self.read_body()
+            post_type = data.get("type", "")
+            text = data.get("text", "").strip()
+            location = data.get("location", "").strip()
+            if post_type not in ("suche", "biete"):
+                self.send_json({"error": "Typ muss 'suche' oder 'biete' sein"}, 400)
+                return
+            if not text:
+                self.send_json({"error": "Text darf nicht leer sein"}, 400)
+                return
+            state = load_state()
+            post = create_post(state, session, post_type, text, location)
+            save_state(state)
+            emoji = ":mag:" if post_type == "suche" else ":package:"
+            label = "Suche" if post_type == "suche" else "Biete"
+            loc = f" ({post['location']})" if post.get("location") else ""
+            threading.Thread(
+                target=post_to_thread,
+                args=(state, "board_thread_id", "Ressourcen-Board",
+                      f"{emoji} **{label}** von **{post['author']}**: {post['text']}{loc}"),
+                daemon=True,
+            ).start()
+            self.send_json({"ok": True})
+        elif re.match(r"/api/posts/\w+/delete$", self.path):
+            post_id = self.path.split("/")[3]
+            state = load_state()
+            deleted = delete_post(state, post_id, session)
+            if deleted:
+                save_state(state)
+                self.send_json({"ok": True})
+            else:
+                self.send_json({"error": "Nicht gefunden oder nicht berechtigt"}, 404)
+        elif self.path == "/api/config/propose":
+            data = self.read_body()
+            changes = data.get("changes", {})
+            if not changes:
+                self.send_json({"error": "Keine Änderungen"}, 400)
+                return
+            state = load_state()
+            current = get_current_config()
+            proposal = create_proposal(state, session, changes, current)
+            if not proposal:
+                self.send_json({"error": "Keine gültigen Änderungen"}, 400)
+                return
+            save_state(state)
+            diff_lines = []
+            for key, c in proposal["changes"].items():
+                diff_lines.append(f"• {c['label']}: {c['from']} → {c['to']}")
+            diff_text = "\n".join(diff_lines)
+            threading.Thread(
+                target=post_to_thread,
+                args=(state, "config_thread_id", "Config-Vorschläge",
+                      f":gear: **Config-Vorschlag** von **{session['username']}**\n{diff_text}",
+                      proposal),
+                daemon=True,
+            ).start()
+            self.send_json({"ok": True})
+        elif re.match(r"/api/config/\w+/stage$", self.path):
+            if session["role"] != "admin":
+                self.send_json({"error": "Nur Admins"}, 403)
+                return
+            proposal_id = self.path.split("/")[3]
+            data = self.read_body()
+            new_status = data.get("status")
+            if new_status not in ("approved", "rejected"):
+                self.send_json({"error": "Ungültiger Status"}, 400)
+                return
+            state = load_state()
+            proposal = None
+            for p in state.get("config_proposals", []):
+                if p["id"] == proposal_id:
+                    proposal = p
+                    break
+            if not proposal:
+                self.send_json({"error": "Nicht gefunden"}, 404)
+                return
+            proposal["status"] = new_status
+            if new_status == "approved":
+                apply_proposal(proposal)
+            save_state(state)
+            status_emoji = ":white_check_mark:" if new_status == "approved" else ":x:"
+            status_text = "genehmigt" if new_status == "approved" else "abgelehnt"
+            diff_lines = []
+            for key, c in proposal["changes"].items():
+                diff_lines.append(f"• {c['label']}: {c['from']} → {c['to']}")
+            diff_text = "\n".join(diff_lines)
+            warning = "\n*Wirksam nach Server-Neustart.*" if new_status == "approved" else ""
+            threading.Thread(
+                target=post_to_thread,
+                args=(state, "config_thread_id", "Config-Vorschläge",
+                      f"{status_emoji} **Config-Vorschlag {status_text}**\n{diff_text}{warning}",
+                      proposal),
+                daemon=True,
+            ).start()
             self.send_json({"ok": True})
         else:
             self.send_json({"error": "not found"}, 404)

@@ -111,6 +111,42 @@
   .book-name { font-size: 0.9rem; }
   .book-name.checked { color: #666; text-decoration: line-through; }
   .book-by { color: #666; font-size: 0.75rem; margin-left: auto; }
+  .post-item { display: flex; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid #222; align-items: flex-start; }
+  .post-item:last-child { border-bottom: none; }
+  .post-item.stale { opacity: 0.5; }
+  .post-badge { padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.75rem; font-weight: 600;
+                text-transform: uppercase; flex-shrink: 0; }
+  .post-badge.suche { background: #3a1a1a; color: #e94560; }
+  .post-badge.biete { background: #1a3a1a; color: #4caf50; }
+  .post-text { flex: 1; }
+  .post-location { color: #5ba4e6; font-size: 0.85rem; }
+  .post-meta { color: #666; font-size: 0.8rem; margin-top: 0.2rem; }
+  .post-delete { background: none; border: none; color: #666; cursor: pointer; font-size: 0.85rem; padding: 0.2rem; }
+  .post-delete:hover { color: #e94560; }
+  .type-toggle { display: flex; gap: 0; }
+  .type-toggle button { padding: 0.4rem 0.8rem; border: 1px solid #333; background: #0f3460; color: #888; cursor: pointer; }
+  .type-toggle button:first-child { border-radius: 4px 0 0 4px; }
+  .type-toggle button:last-child { border-radius: 0 4px 4px 0; }
+  .type-toggle button.active { background: #e94560; color: white; border-color: #e94560; }
+  .config-group { margin-bottom: 1.5rem; }
+  .config-group h3 { color: #e94560; font-size: 0.95rem; margin-bottom: 0.5rem; cursor: pointer; }
+  .config-group h3:hover { color: #ff6b81; }
+  .config-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0;
+                border-bottom: 1px solid #222; }
+  .config-row:last-child { border-bottom: none; }
+  .config-label { flex: 1; font-size: 0.9rem; }
+  .config-label .sandbox-warn { color: #e94560; font-size: 0.7rem; margin-left: 0.5rem; }
+  .config-input select, .config-input input { background: #0f3460; border: 1px solid #333; color: #e0e0e0;
+    border-radius: 4px; padding: 0.3rem 0.5rem; font-size: 0.85rem; }
+  .config-input select { min-width: 140px; }
+  .config-input input[type="number"] { width: 80px; }
+  .config-input input[type="text"] { width: 200px; }
+  .config-changed { border-color: #e94560 !important; }
+  .config-default { color: #666; font-size: 0.75rem; }
+  .proposal-item { padding: 0.8rem; border-bottom: 1px solid #222; }
+  .proposal-item:last-child { border-bottom: none; }
+  .proposal-diff { font-size: 0.85rem; color: #ccc; margin: 0.5rem 0; }
+  .proposal-diff li { margin: 0.2rem 0; }
   .stats-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   .stats-table th { text-align: left; color: #888; padding: 0.5rem; border-bottom: 1px solid #333; font-size: 0.8rem; }
   .stats-table td { padding: 0.5rem; border-bottom: 1px solid #222; }
@@ -298,6 +334,8 @@ function renderMods(mods) {
         <div class="nav-links">
           <a href="#" onclick="showBooks();return false">Bücher</a>
           <a href="#" onclick="showStats();return false">Stats</a>
+          <a href="#" onclick="showBoard();return false">Board</a>
+          <a href="#" onclick="showConfig();return false">Config</a>
           ${isAdmin ? '<a href="#" onclick="refreshDiscordVotes();return false" title="Discord-Votes neu laden">&#x21bb;</a>' : ''}
           ${isAdmin ? '<a href="#" onclick="showUsers();return false">Benutzer</a>' : ''}
           <a href="/api/logout">Logout</a>
@@ -652,6 +690,180 @@ async function showStats() {
   }
 
   el.innerHTML = html;
+}
+
+let boardType = "suche";
+
+async function showBoard() {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
+    '<div class="modal"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
+    '<div class="modal-body"><h2>Ressourcen-Board</h2>' +
+    '<div style="display:flex;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">' +
+      '<div class="type-toggle">' +
+        '<button class="' + (boardType === "suche" ? "active" : "") + '" onclick="boardType=\'suche\';showBoard()">Suche</button>' +
+        '<button class="' + (boardType === "biete" ? "active" : "") + '" onclick="boardType=\'biete\';showBoard()">Biete</button>' +
+      '</div>' +
+      '<input type="text" id="post-text" placeholder="Was brauchst du / bietest du an?" style="flex:1;min-width:150px" onkeydown="if(event.key===\'Enter\')createPost()">' +
+      '<input type="text" id="post-location" placeholder="Ort (optional)" style="width:180px">' +
+      '<button class="btn-primary" onclick="createPost()">Posten</button>' +
+    '</div>' +
+    '<div id="post-status" class="status"></div>' +
+    '<div id="post-list"><span class="loading">Laden...</span></div>' +
+    '</div></div></div>';
+  const posts = await api("GET", "/api/posts");
+  renderPosts(posts);
+}
+
+function renderPosts(posts) {
+  const el = document.getElementById("post-list");
+  if (!el) return;
+  if (!posts || !posts.length) { el.innerHTML = '<p class="empty">Keine Einträge</p>'; return; }
+  el.innerHTML = posts.map(p => {
+    const staleCls = p.stale ? " stale" : "";
+    const canDelete = p.author === currentUser.username || currentUser.role === "admin";
+    const delBtn = canDelete ? '<button class="post-delete" onclick="deletePost(\'' + p.id + '\')" title="Löschen">&times;</button>' : '';
+    const loc = p.location ? '<div class="post-location">' + p.location + '</div>' : '';
+    const staleTag = p.stale ? ' <span style="color:#666;font-size:0.75rem">(veraltet)</span>' : '';
+    return '<div class="post-item' + staleCls + '">' +
+      '<span class="post-badge ' + p.type + '">' + (p.type === "suche" ? "Suche" : "Biete") + '</span>' +
+      '<div class="post-text">' + p.text + staleTag + loc +
+        '<div class="post-meta">' + p.author + ' · ' + p.created_at + '</div></div>' +
+      delBtn + '</div>';
+  }).join("");
+}
+
+async function createPost() {
+  const text = document.getElementById("post-text").value.trim();
+  const location = document.getElementById("post-location").value.trim();
+  if (!text) return;
+  const st = document.getElementById("post-status");
+  const res = await api("POST", "/api/posts", { type: boardType, text: text, location: location });
+  if (res && res.ok) {
+    st.className = "status ok"; st.textContent = "Gepostet!";
+    document.getElementById("post-text").value = "";
+    document.getElementById("post-location").value = "";
+    const posts = await api("GET", "/api/posts");
+    renderPosts(posts);
+  } else {
+    st.className = "status err"; st.textContent = (res && res.error) || "Fehler";
+  }
+  setTimeout(() => { st.className = "status"; }, 3000);
+}
+
+async function deletePost(id) {
+  if (!confirm("Eintrag löschen?")) return;
+  await api("POST", "/api/posts/" + id + "/delete");
+  const posts = await api("GET", "/api/posts");
+  renderPosts(posts);
+}
+
+let configData = null;
+let configChanges = {};
+
+async function showConfig() {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
+    '<div class="modal" style="max-width:800px"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
+    '<div class="modal-body"><h2>Server-Konfiguration</h2>' +
+    '<div id="config-content"><span class="loading">Laden...</span></div>' +
+    '</div></div></div>';
+  configChanges = {};
+  const [config, proposals] = await Promise.all([
+    api("GET", "/api/config"),
+    api("GET", "/api/config/proposals"),
+  ]);
+  configData = config;
+  renderConfig(config, proposals);
+}
+
+function renderConfig(config, proposals) {
+  const el = document.getElementById("config-content");
+  if (!el || !config) return;
+  const isAdmin = currentUser.role === "admin";
+  const pending = (proposals || []).filter(p => p.status === "pending");
+  const hasChanges = Object.keys(configChanges).length > 0;
+
+  let html = '';
+
+  if (pending.length) {
+    html += '<div class="card" style="margin-bottom:1rem"><h3 style="color:#e94560;margin-bottom:0.5rem">Offene Vorschläge (' + pending.length + ')</h3>';
+    html += pending.map(p => {
+      const diffs = Object.entries(p.changes).map(([k, c]) =>
+        '<li>' + c.label + ': <span style="color:#e94560">' + c.from + '</span> → <span style="color:#4caf50">' + c.to + '</span></li>'
+      ).join("");
+      let btns = "";
+      if (isAdmin) {
+        btns = '<button class="btn-approve btn-sm" onclick="stageProposal(\'' + p.id + '\',\'approved\')">Genehmigen</button> ' +
+          '<button class="btn-reject btn-sm" onclick="stageProposal(\'' + p.id + '\',\'rejected\')">Ablehnen</button>';
+      }
+      return '<div class="proposal-item"><div class="mod-meta">von ' + p.proposed_by + ' · ' + p.created_at + '</div>' +
+        '<ul class="proposal-diff">' + diffs + '</ul>' + btns + '</div>';
+    }).join("");
+    html += '</div>';
+  }
+
+  html += config.map(group => {
+    const rows = group.settings.map(s => {
+      const val = configChanges[s.key] !== undefined ? configChanges[s.key] : s.current;
+      const changed = configChanges[s.key] !== undefined && configChanges[s.key] !== s.current;
+      const changedCls = changed ? " config-changed" : "";
+      const sandboxWarn = s.file === "sandbox" ? '<span class="sandbox-warn">(nur bei neuem Welt-Start)</span>' : '';
+      const defaultTag = s.is_default ? ' <span class="config-default">(Standard)</span>' : '';
+      let input = "";
+      if (s.type === "select") {
+        input = '<select class="' + changedCls + '" onchange="configChange(\'' + s.key + '\',this.value)">';
+        for (const [optVal, optLabel] of Object.entries(s.options)) {
+          const sel = String(val) === optVal ? " selected" : "";
+          input += '<option value="' + optVal + '"' + sel + '>' + optLabel + '</option>';
+        }
+        input += '</select>';
+      } else if (s.type === "boolean") {
+        input = '<select class="' + changedCls + '" onchange="configChange(\'' + s.key + '\',this.value===\'true\')">' +
+          '<option value="true"' + (val === true ? " selected" : "") + '>Ja</option>' +
+          '<option value="false"' + (val === false || val === "false" ? " selected" : "") + '>Nein</option></select>';
+      } else if (s.type === "number") {
+        input = '<input type="number" class="' + changedCls + '" value="' + val + '" onchange="configChange(\'' + s.key + '\',parseFloat(this.value))">';
+      } else {
+        input = '<input type="text" class="' + changedCls + '" value="' + (val || "") + '" onchange="configChange(\'' + s.key + '\',this.value)">';
+      }
+      return '<div class="config-row"><div class="config-label">' + s.label + sandboxWarn + defaultTag + '</div><div class="config-input">' + input + '</div></div>';
+    }).join("");
+    return '<div class="config-group"><h3>' + group.group + '</h3>' + rows + '</div>';
+  }).join("");
+
+  if (hasChanges) {
+    html += '<div style="position:sticky;bottom:0;background:#16213e;padding:1rem;border-top:1px solid #333;display:flex;gap:0.75rem;align-items:center">' +
+      '<span style="color:#e94560;font-weight:500">' + Object.keys(configChanges).length + ' Änderung(en)</span>' +
+      '<button class="btn-primary" onclick="proposeChanges()">Vorschlagen</button>' +
+      '<button class="toggle-btn" onclick="configChanges={};showConfig()">Zurücksetzen</button></div>';
+  }
+
+  el.innerHTML = html;
+}
+
+function configChange(key, value) {
+  const original = configData.flatMap(g => g.settings).find(s => s.key === key);
+  if (original && value === original.current) {
+    delete configChanges[key];
+  } else {
+    configChanges[key] = value;
+  }
+  api("GET", "/api/config/proposals").then(proposals => renderConfig(configData, proposals));
+}
+
+async function proposeChanges() {
+  if (!Object.keys(configChanges).length) return;
+  const res = await api("POST", "/api/config/propose", { changes: configChanges });
+  if (res && res.ok) {
+    configChanges = {};
+    showConfig();
+  }
+}
+
+async function stageProposal(id, status) {
+  await api("POST", "/api/config/" + id + "/stage", { status: status });
+  showConfig();
 }
 
 checkSession();

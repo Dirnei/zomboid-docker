@@ -112,6 +112,38 @@ def ensure_discord_thread(state):
     return None
 
 
+def ensure_thread(state, state_key, thread_name):
+    """Create or reuse a named Discord thread. Thread ID stored in state[state_key]."""
+    if state.get(state_key):
+        return state[state_key]
+    if not DISCORD_TOKEN or not DISCORD_CHANNEL_ID:
+        return None
+    result = discord_api("POST", f"/channels/{DISCORD_CHANNEL_ID}/threads", {
+        "name": thread_name,
+        "type": 11,
+        "auto_archive_duration": 10080,
+    })
+    if result and "id" in result:
+        state[state_key] = result["id"]
+        save_state(state)
+        return result["id"]
+    return None
+
+
+def post_to_thread(state, state_key, thread_name, content, msg_id_holder=None, msg_id_key="discord_msg_id"):
+    """Post or edit a message in a named thread."""
+    thread_id = ensure_thread(state, state_key, thread_name)
+    if not thread_id:
+        return
+    if msg_id_holder and msg_id_holder.get(msg_id_key):
+        discord_api("PATCH", f"/channels/{thread_id}/messages/{msg_id_holder[msg_id_key]}", {"content": content})
+    else:
+        result = discord_api("POST", f"/channels/{thread_id}/messages", {"content": content})
+        if result and "id" in result and msg_id_holder is not None:
+            msg_id_holder[msg_id_key] = result["id"]
+            save_state(state)
+
+
 def post_mod_to_discord(state, mod, action="suggested"):
     thread_id = ensure_discord_thread(state)
     if not thread_id:
