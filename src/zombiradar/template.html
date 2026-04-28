@@ -1,51 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de" data-bs-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZombiRadar</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-         background: #1a1a2e; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
-  .container { max-width: 900px; margin: 0 auto; }
-  .logo { width: 80px; height: 80px; margin-bottom: 1rem; border-radius: 8px; }
-  .logo-sm { width: 48px; height: 48px; border-radius: 6px; }
-  h1 { color: #e94560; margin-bottom: 0.5rem; }
-  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-  .header-left h1 { margin-bottom: 0.25rem; }
-  .subtitle { color: #888; }
-  .user-info { display: flex; align-items: center; gap: 0.75rem; color: #888; font-size: 0.9rem; }
-  .user-info strong { color: #e0e0e0; }
-  .user-info a { color: #e94560; text-decoration: none; }
+  body { background: #1a1a2e; min-height: 100vh; }
+  .logo { width: 80px; height: 80px; border-radius: 8px; }
+  .logo-sm { width: 32px; height: 32px; border-radius: 6px; }
   .avatar { width: 32px; height: 32px; border-radius: 50%; }
-  .card { background: #16213e; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
-  .card h2 { color: #e94560; margin-bottom: 1rem; font-size: 1.1rem; }
-  .form-row { display: flex; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-  input[type="text"] { flex: 1; min-width: 200px; padding: 0.6rem 0.8rem; border: 1px solid #333;
-                        border-radius: 4px; background: #0f3460; color: #e0e0e0; font-size: 0.95rem; }
-  input::placeholder { color: #666; }
-  input:focus { outline: none; border-color: #e94560; }
-  button { padding: 0.6rem 1.2rem; border: none; border-radius: 4px; cursor: pointer;
-           font-size: 0.95rem; font-weight: 500; transition: opacity 0.2s; }
-  button:hover { opacity: 0.85; }
-  .btn-primary { background: #e94560; color: white; }
-  .btn-discord { background: #5865F2; color: white; display: flex; align-items: center;
-                 gap: 0.5rem; font-size: 1rem; padding: 0.8rem 1.5rem; width: 100%;
-                 justify-content: center; }
-  .btn-vote { background: #0f3460; color: #4caf50; border: 1px solid #333; }
-  .btn-vote.voted { background: #1a3a1a; border-color: #4caf50; }
-  .btn-approve { background: #1a3a1a; color: #4caf50; }
-  .btn-reject { background: #3a1a1a; color: #e94560; }
-  .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+  .accent { color: #e94560; }
+  .btn-accent { background: #e94560; color: white; border-color: #e94560; }
+  .btn-accent:hover { background: #d13550; color: white; border-color: #d13550; }
+  .btn-discord { background: #5865F2; color: white; border-color: #5865F2; }
+  .btn-discord:hover { background: #4752c4; color: white; border-color: #4752c4; }
+  .discord-icon { width: 20px; height: 20px; }
+  .card { background: #16213e; border-color: #333; }
+  .card-header { background: #0f1a30; border-color: #333; }
+  .card h2, .card .card-title { color: #e94560; font-size: 1.1rem; }
   .mod-item { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem;
               border-bottom: 1px solid #222; gap: 1rem; }
   .mod-item:last-child { border-bottom: none; }
-  .mod-thumb { width: 64px; height: 64px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
-  .mod-thumb { background: #0f3460; }
-  .mod-thumb[src=""], .mod-thumb:not([src]) { content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect width='64' height='64' fill='%230f3460'/%3E%3Cpath d='M20 18h8v4a4 4 0 0 0 8 0v-4h8a2 2 0 0 1 2 2v8h-4a4 4 0 0 0 0 8h4v8a2 2 0 0 1-2 2h-8v-4a4 4 0 0 0-8 0v4h-8a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2z' fill='%23333f5e'/%3E%3C/svg%3E"); }
+  .mod-thumb { width: 64px; height: 64px; border-radius: 4px; object-fit: cover; flex-shrink: 0;
+               background: #0f3460; }
+  .mod-thumb[src=""], .mod-thumb:not([src]) {
+    content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect width='64' height='64' fill='%230f3460'/%3E%3Cpath d='M20 18h8v4a4 4 0 0 0 8 0v-4h8a2 2 0 0 1 2 2v8h-4a4 4 0 0 0 0 8h4v8a2 2 0 0 1-2 2h-8v-4a4 4 0 0 0-8 0v4h-8a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2z' fill='%23333f5e'/%3E%3C/svg%3E");
+  }
   .mod-info { flex: 1; min-width: 0; }
-  .mod-title { color: #e0e0e0; font-weight: 500; }
+  .mod-title { font-weight: 500; }
   .mod-title a { color: #5ba4e6; text-decoration: none; }
   .mod-title a:hover { text-decoration: underline; }
   .mod-meta { color: #888; font-size: 0.85rem; margin-top: 0.25rem; }
@@ -64,43 +47,13 @@
   .btn-up:disabled, .btn-down:disabled { opacity: 0.5; cursor: default; }
   .btn-delete { background: none; border: 1px solid #333; color: #666; padding: 0.3rem 0.5rem; }
   .btn-delete:hover { border-color: #e94560; color: #e94560; }
-  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.75rem;
-           font-weight: 600; text-transform: uppercase; }
-  .badge-suggested { background: #0f3460; color: #5ba4e6; }
-  .badge-approved { background: #1a3a1a; color: #4caf50; }
-  .badge-rejected { background: #3a1a1a; color: #e94560; }
-  .empty { color: #666; font-style: italic; padding: 1rem; }
-  .notice { background: #0f3460; border-left: 3px solid #e94560; padding: 0.8rem 1rem;
-            border-radius: 0 4px 4px 0; margin-bottom: 1.5rem; font-size: 0.9rem; color: #aaa; }
-  .status { padding: 0.5rem; margin-top: 0.5rem; border-radius: 4px; font-size: 0.9rem; display: none; }
-  .status.ok { display: block; background: #1a3a1a; color: #4caf50; }
-  .status.err { display: block; background: #3a1a1a; color: #e94560; }
-  .login-card { max-width: 400px; margin: 4rem auto; text-align: center; }
-  .login-card h2 { margin-bottom: 1.5rem; }
-  .loading { color: #888; font-style: italic; }
-  .discord-icon { width: 20px; height: 20px; }
-  .user-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0;
-              border-bottom: 1px solid #222; }
-  .user-row:last-child { border-bottom: none; }
-  .user-row .avatar { width: 28px; height: 28px; }
-  .user-row .user-name { flex: 1; font-weight: 500; }
-  .user-row .user-name.banned { text-decoration: line-through; color: #666; }
-  .user-stats { color: #888; font-size: 0.85rem; margin-right: 0.5rem; }
-  .user-stats .pending { color: #e94560; }
-  .btn-ban { background: #3a1a1a; color: #e94560; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-  .btn-unban { background: #1a3a1a; color: #4caf50; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-  .toggle-btn { background: none; border: 1px solid #333; color: #888; cursor: pointer;
-                font-size: 0.85rem; padding: 0.4rem 0.8rem; }
-  .toggle-btn:hover { border-color: #e94560; color: #e0e0e0; }
-  .nav-links { display: flex; gap: 0.75rem; align-items: center; }
-  .nav-links a { color: #888; text-decoration: none; font-size: 0.9rem; padding: 0.3rem 0.6rem;
-                 border: 1px solid transparent; border-radius: 4px; }
-  .nav-links a:hover { color: #e0e0e0; border-color: #333; }
+  .btn-steam { background: #171a21; color: #66c0f4; border-color: #171a21; display: inline-flex; align-items: center; gap: 0.5rem; }
+  .btn-steam:hover { background: #1b2838; color: #66c0f4; }
   .badge-admin { background: #e94560; color: white; font-size: 0.65rem; padding: 0.1rem 0.4rem;
                  border-radius: 3px; margin-left: 0.3rem; text-transform: uppercase; vertical-align: middle; }
   .book-group { margin-bottom: 1.5rem; }
   .book-group h3 { color: #e94560; font-size: 0.95rem; margin-bottom: 0.5rem; }
-  .book-group .progress { color: #888; font-size: 0.8rem; margin-left: 0.5rem; }
+  .book-group .progress-text { color: #888; font-size: 0.8rem; margin-left: 0.5rem; }
   .book-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0;
                cursor: pointer; user-select: none; }
   .book-item:hover { color: #fff; }
@@ -123,11 +76,6 @@
   .post-meta { color: #666; font-size: 0.8rem; margin-top: 0.2rem; }
   .post-delete { background: none; border: none; color: #666; cursor: pointer; font-size: 0.85rem; padding: 0.2rem; }
   .post-delete:hover { color: #e94560; }
-  .type-toggle { display: flex; gap: 0; }
-  .type-toggle button { padding: 0.4rem 0.8rem; border: 1px solid #333; background: #0f3460; color: #888; cursor: pointer; }
-  .type-toggle button:first-child { border-radius: 4px 0 0 4px; }
-  .type-toggle button:last-child { border-radius: 0 4px 4px 0; }
-  .type-toggle button.active { background: #e94560; color: white; border-color: #e94560; }
   .config-group { margin-bottom: 1.5rem; }
   .config-group h3 { color: #e94560; font-size: 0.95rem; margin-bottom: 0.5rem; cursor: pointer; }
   .config-group h3:hover { color: #ff6b81; }
@@ -147,41 +95,221 @@
   .proposal-item:last-child { border-bottom: none; }
   .proposal-diff { font-size: 0.85rem; color: #ccc; margin: 0.5rem 0; }
   .proposal-diff li { margin: 0.2rem 0; }
-  .stats-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  .stats-table th { text-align: left; color: #888; padding: 0.5rem; border-bottom: 1px solid #333; font-size: 0.8rem; }
-  .stats-table td { padding: 0.5rem; border-bottom: 1px solid #222; }
-  .stats-table tr:hover td { background: #0f3460; }
   .stat-card { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
   .stat-item { background: #0f3460; border-radius: 6px; padding: 0.75rem 1rem; text-align: center; min-width: 100px; }
   .stat-value { font-size: 1.5rem; font-weight: 700; color: #e94560; }
   .stat-label { font-size: 0.75rem; color: #888; margin-top: 0.25rem; }
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
-                   display: flex; align-items: center; justify-content: center; padding: 2rem; }
-  .modal { background: #16213e; border-radius: 12px; max-width: 700px; width: 100%;
-           max-height: 90vh; overflow-y: auto; position: relative; }
-  .modal-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 12px 12px 0 0; }
-  .modal-body { padding: 1.5rem; }
-  .modal-body h2 { color: #e94560; margin-bottom: 0.5rem; }
-  .modal-body .mod-meta { margin-bottom: 0.75rem; }
+  .user-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0;
+              border-bottom: 1px solid #222; }
+  .user-row:last-child { border-bottom: none; }
+  .user-row .avatar { width: 28px; height: 28px; }
+  .user-row .user-name { flex: 1; font-weight: 500; }
+  .user-row .user-name.banned { text-decoration: line-through; color: #666; }
+  .user-stats { color: #888; font-size: 0.85rem; margin-right: 0.5rem; }
+  .user-stats .pending { color: #e94560; }
+  .navbar { border-bottom: 1px solid #333; }
+  .nav-link.active { color: #e94560 !important; }
+  .form-control.bg-dark, .form-select.bg-dark {
+    background-color: #0f3460 !important;
+  }
+  .modal-content { background: #16213e; }
   .modal-desc { color: #ccc; line-height: 1.6; white-space: pre-wrap; margin: 1rem 0;
                 max-height: 300px; overflow-y: auto; font-size: 0.9rem; }
-  .modal-actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
-  .modal-close { position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(0,0,0,0.5);
-                 color: white; border: none; border-radius: 50%; width: 32px; height: 32px;
-                 font-size: 1.2rem; cursor: pointer; z-index: 1;
-                 display: flex; align-items: center; justify-content: center; line-height: 1; }
-  .modal-close:hover { background: rgba(0,0,0,0.8); }
-  .btn-steam { background: #171a21; color: #66c0f4; display: inline-flex; align-items: center; gap: 0.5rem; }
+  .modal-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 0.375rem 0.375rem 0 0; }
 </style>
 </head>
 <body>
-<div class="container" id="app"></div>
-<div id="modal-root"></div>
 
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <img src="/logo.png" class="logo-sm" onerror="this.style.display='none'" alt="Logo">
+      <span class="accent fw-bold">ZombiRadar</span>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarMain">
+      <ul class="navbar-nav me-auto" id="nav-items">
+        <li class="nav-item"><a class="nav-link active" href="#" data-page="mods" onclick="navigateTo('mods');return false">Mods</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-page="board" onclick="navigateTo('board');return false">Board</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-page="config" onclick="navigateTo('config');return false">Config</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-page="books" onclick="navigateTo('books');return false">B&uuml;cher</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-page="stats" onclick="navigateTo('stats');return false">Stats</a></li>
+      </ul>
+      <ul class="navbar-nav" id="nav-admin" style="display:none">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">&#9881;</a>
+          <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+            <li><a class="dropdown-item" href="#" onclick="showUsers();return false">Benutzer</a></li>
+            <li><a class="dropdown-item" href="#" onclick="refreshDiscordVotes();return false">&#x21bb; Discord-Refresh</a></li>
+          </ul>
+        </li>
+      </ul>
+      <ul class="navbar-nav ms-2" id="nav-user">
+        <li class="nav-item d-flex align-items-center gap-2">
+          <span id="nav-avatar"></span>
+          <span id="nav-username" class="text-light small"></span>
+          <a class="nav-link py-0 px-2 small" href="/api/logout">Logout</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Login page (shown when not logged in) -->
+<div id="login-page" style="display:none">
+  <div class="d-flex align-items-center justify-content-center" style="min-height:100vh">
+    <div class="card bg-dark border-secondary text-center" style="max-width:400px;width:100%">
+      <div class="card-body p-4">
+        <img src="/logo.png" class="logo mb-3" onerror="this.style.display='none'" alt="Logo">
+        <h2 class="accent mb-3">ZombiRadar</h2>
+        <div id="login-error"></div>
+        <p class="text-muted mb-4">Melde dich mit Discord an, um Mods vorzuschlagen und abzustimmen.</p>
+        <a href="/api/login" class="text-decoration-none">
+          <button class="btn btn-discord w-100 d-flex align-items-center justify-content-center gap-2 py-2">
+            <svg class="discord-icon" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+            Login mit Discord
+          </button>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- App content (shown when logged in) -->
+<div id="app-content" style="display:none" class="container mt-5 pt-4">
+
+  <!-- Mods page -->
+  <div id="page-mods" class="page" style="display:none">
+    <div class="alert alert-info border-0" style="background:#0f3460;border-left:3px solid #e94560 !important;color:#aaa">
+      Genehmigte Mods werden beim n&auml;chsten Server-Neustart geladen.
+    </div>
+    <div class="card bg-dark border-secondary mb-3">
+      <div class="card-body">
+        <h2 class="card-title">Mod vorschlagen</h2>
+        <div class="input-group">
+          <input type="text" id="workshop-id" class="form-control bg-dark border-secondary text-light"
+            placeholder="Steam Workshop URL oder ID" onkeydown="if(event.key==='Enter')suggest()">
+          <button class="btn btn-accent" onclick="suggest()">Vorschlagen</button>
+        </div>
+        <div id="add-status" class="mt-2" style="display:none"></div>
+      </div>
+    </div>
+    <div id="mods-sections"></div>
+  </div>
+
+  <!-- Board page -->
+  <div id="page-board" class="page" style="display:none">
+    <div class="card bg-dark border-secondary mb-3">
+      <div class="card-body">
+        <h2 class="card-title">Ressourcen-Board</h2>
+        <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+          <div class="btn-group" id="board-type-toggle">
+            <button class="btn btn-outline-danger active" onclick="setBoardType('suche')">Suche</button>
+            <button class="btn btn-outline-success" onclick="setBoardType('biete')">Biete</button>
+          </div>
+          <input type="text" id="post-text" class="form-control bg-dark border-secondary text-light flex-grow-1"
+            placeholder="Was brauchst du / bietest du an?" style="min-width:150px"
+            onkeydown="if(event.key==='Enter')createPost()">
+          <input type="text" id="post-location" class="form-control bg-dark border-secondary text-light"
+            placeholder="Ort (optional)" style="width:180px">
+          <button class="btn btn-accent" onclick="createPost()">Posten</button>
+        </div>
+        <div id="post-status" style="display:none"></div>
+        <div id="post-list"><span class="text-muted fst-italic">Laden...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config page -->
+  <div id="page-config" class="page" style="display:none">
+    <div class="card bg-dark border-secondary mb-3">
+      <div class="card-body">
+        <h2 class="card-title">Server-Konfiguration</h2>
+        <div id="config-content"><span class="text-muted fst-italic">Laden...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Books page -->
+  <div id="page-books" class="page" style="display:none">
+    <div class="card bg-dark border-secondary mb-3">
+      <div class="card-body">
+        <h2 class="card-title">Skill-B&uuml;cher</h2>
+        <div id="book-list"><span class="text-muted fst-italic">Laden...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats page -->
+  <div id="page-stats" class="page" style="display:none">
+    <div class="card bg-dark border-secondary mb-3">
+      <div class="card-body">
+        <h2 class="card-title">Statistiken</h2>
+        <div id="stats-content"><span class="text-muted fst-italic">Laden...</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Mod detail modal (Bootstrap modal) -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary">
+      <div id="detail-modal-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Users modal (Bootstrap modal) -->
+<div class="modal fade" id="usersModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title accent">Benutzer</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="user-list">
+        <span class="text-muted fst-italic">Laden...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 let currentUser = null;
 let currentMods = [];
+let currentPage = 'mods';
+let detailModalInstance = null;
+let usersModalInstance = null;
 
+// ── Page navigation ──
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  const el = document.getElementById('page-' + page);
+  if (el) el.style.display = 'block';
+  document.querySelectorAll('.nav-link[data-page]').forEach(l => l.classList.remove('active'));
+  const link = document.querySelector('.nav-link[data-page="' + page + '"]');
+  if (link) link.classList.add('active');
+  currentPage = page;
+  // Collapse mobile nav
+  const navCollapse = document.getElementById('navbarMain');
+  if (navCollapse.classList.contains('show')) {
+    bootstrap.Collapse.getOrCreateInstance(navCollapse).hide();
+  }
+  // Load page data
+  if (page === 'mods') render();
+  else if (page === 'board') loadBoard();
+  else if (page === 'config') loadConfig();
+  else if (page === 'books') loadBooks();
+  else if (page === 'stats') loadStats();
+}
+
+// ── API helper ──
 async function api(method, path, body) {
   const opts = { method, headers: { "Content-Type": "application/json" } };
   if (body) opts.body = JSON.stringify(body);
@@ -195,43 +323,67 @@ function extractId(input) {
   return m ? m[1] : input.trim();
 }
 
+// ── Session ──
 async function checkSession() {
   const res = await api("GET", "/api/session");
-  if (res && res.ok) currentUser = res;
-  render();
+  if (res && res.ok) {
+    currentUser = res;
+    showApp();
+    navigateTo('mods');
+  } else {
+    showLogin();
+  }
 }
 
-function renderLogin() {
+function showLogin() {
+  document.getElementById("login-page").style.display = "block";
+  document.getElementById("app-content").style.display = "none";
+  document.querySelector(".navbar").style.display = "none";
+
   const params = new URLSearchParams(window.location.search);
   const error = params.get("error");
-  let errorHtml = "";
+  const errEl = document.getElementById("login-error");
   if (error === "rate_limited") {
-    errorHtml = '<div class="status err" style="display:block;margin-bottom:1rem">Discord drosselt gerade Anfragen. Bitte warte ein paar Minuten und versuche es erneut.</div>';
+    errEl.innerHTML = '<div class="alert alert-danger">Discord drosselt gerade Anfragen. Bitte warte ein paar Minuten und versuche es erneut.</div>';
   } else if (error === "login_failed") {
-    errorHtml = '<div class="status err" style="display:block;margin-bottom:1rem">Login fehlgeschlagen. Bitte versuche es erneut.</div>';
+    errEl.innerHTML = '<div class="alert alert-danger">Login fehlgeschlagen. Bitte versuche es erneut.</div>';
+  } else {
+    errEl.innerHTML = '';
   }
   if (error) window.history.replaceState({}, "", "/");
-  document.getElementById("app").innerHTML = `
-    <div class="login-card card">
-      <img src="/logo.png" class="logo" onerror="this.style.display='none'">
-      <h2>ZombiRadar</h2>
-      ${errorHtml}
-      <p class="subtitle" style="margin-bottom:1.5rem">Melde dich mit Discord an, um Mods vorzuschlagen und abzustimmen.</p>
-      <a href="/api/login" style="text-decoration:none">
-        <button class="btn-discord">
-          <svg class="discord-icon" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
-          Login mit Discord
-        </button>
-      </a>
-    </div>`;
 }
 
+function showApp() {
+  document.getElementById("login-page").style.display = "none";
+  document.getElementById("app-content").style.display = "block";
+  document.querySelector(".navbar").style.display = "";
+
+  // Update navbar user info
+  const avatarEl = document.getElementById("nav-avatar");
+  const nameEl = document.getElementById("nav-username");
+  if (currentUser.avatar_url) {
+    avatarEl.innerHTML = '<img class="avatar" src="' + currentUser.avatar_url + '" alt="Avatar">';
+  } else {
+    avatarEl.innerHTML = '';
+  }
+  nameEl.textContent = currentUser.username;
+
+  // Show/hide admin dropdown
+  const adminNav = document.getElementById("nav-admin");
+  if (currentUser.role === "admin") {
+    adminNav.style.display = "";
+  } else {
+    adminNav.style.display = "none";
+  }
+}
+
+// ── Mods page (default) ──
 let discordVotes = {};
 const PAGE_SIZE = 10;
 let pages = {};
 
 async function render() {
-  if (!currentUser) { renderLogin(); return; }
+  if (!currentUser) { showLogin(); return; }
   const mods = await api("GET", "/api/mods");
   if (!mods) return;
   currentMods = mods;
@@ -291,11 +443,13 @@ function paginate(list, key) {
 
 function renderPagination(key, totalPages, currentPage) {
   if (totalPages <= 1) return "";
-  let html = '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.75rem">';
-  if (currentPage > 0) html += '<button class="toggle-btn" onclick="setPage(\'' + key + '\',' + (currentPage - 1) + ')">&#9664;</button>';
-  html += '<span class="mod-meta" style="padding:0.4rem">' + (currentPage + 1) + ' / ' + totalPages + '</span>';
-  if (currentPage < totalPages - 1) html += '<button class="toggle-btn" onclick="setPage(\'' + key + '\',' + (currentPage + 1) + ')">&#9654;</button>';
-  html += '</div>';
+  let html = '<nav><ul class="pagination pagination-sm justify-content-center mt-3 mb-0">';
+  html += '<li class="page-item' + (currentPage === 0 ? ' disabled' : '') + '">' +
+    '<a class="page-link bg-dark border-secondary" href="#" onclick="setPage(\'' + key + '\',' + (currentPage - 1) + ');return false">&#9664;</a></li>';
+  html += '<li class="page-item disabled"><span class="page-link bg-dark border-secondary">' + (currentPage + 1) + ' / ' + totalPages + '</span></li>';
+  html += '<li class="page-item' + (currentPage >= totalPages - 1 ? ' disabled' : '') + '">' +
+    '<a class="page-link bg-dark border-secondary" href="#" onclick="setPage(\'' + key + '\',' + (currentPage + 1) + ');return false">&#9654;</a></li>';
+  html += '</ul></nav>';
   return html;
 }
 
@@ -308,10 +462,11 @@ function renderSection(title, list, allMods, isAdmin, key) {
   if (!list.length) return "";
   const sorted = sortByScore(list);
   const p = paginate(sorted, key);
-  let html = '<div class="card"><h2>' + title + ' (' + p.total + ')</h2>';
+  let html = '<div class="card bg-dark border-secondary mb-3"><div class="card-body">';
+  html += '<h2 class="card-title">' + title + ' (' + p.total + ')</h2>';
   html += renderModList(p.items, allMods, isAdmin);
   html += renderPagination(key, p.totalPages, p.page);
-  html += '</div>';
+  html += '</div></div>';
   return html;
 }
 
@@ -323,46 +478,17 @@ function renderMods(mods) {
   const approved = mods.filter(m => m.status === "approved");
   const rejected = mods.filter(m => m.status === "rejected");
 
-  const avatarHtml = currentUser.avatar_url
-    ? '<img class="avatar" src="' + currentUser.avatar_url + '">'
-    : '';
-
-  let html = `
-    <div class="header">
-      <div class="header-left" style="display:flex;align-items:center;gap:0.75rem"><img src="/logo.png" class="logo-sm" onerror="this.style.display='none'"><div><h1>ZombiRadar</h1><p class="subtitle">Mods vorschlagen, abstimmen & genehmigen</p></div></div>
-      <div class="user-info">${avatarHtml}<strong>${currentUser.username}</strong>
-        <div class="nav-links">
-          <a href="#" onclick="showBooks();return false">Bücher</a>
-          <a href="#" onclick="showStats();return false">Stats</a>
-          <a href="#" onclick="showBoard();return false">Board</a>
-          <a href="#" onclick="showConfig();return false">Config</a>
-          ${isAdmin ? '<a href="#" onclick="refreshDiscordVotes();return false" title="Discord-Votes neu laden">&#x21bb;</a>' : ''}
-          ${isAdmin ? '<a href="#" onclick="showUsers();return false">Benutzer</a>' : ''}
-          <a href="/api/logout">Logout</a>
-        </div>
-      </div>
-    </div>
-    <div class="notice">Genehmigte Mods werden beim nächsten Server-Neustart geladen.</div>
-    <div class="card">
-      <h2>Mod vorschlagen</h2>
-      <div class="form-row">
-        <input type="text" id="workshop-id" placeholder="Steam Workshop URL oder ID"
-          onkeydown="if(event.key==='Enter')suggest()">
-        <button class="btn-primary" onclick="suggest()">Vorschlagen</button>
-      </div>
-      <div id="add-status" class="status"></div>
-    </div>`;
-
+  let html = '';
   html += renderSection('Deine Stimme fehlt', unvoted, mods, isAdmin, 'unvoted');
   html += renderSection('Vorschläge', voted, mods, isAdmin, 'voted');
   html += renderSection('Genehmigte Mods', approved, mods, isAdmin, 'approved');
   html += renderSection('Abgelehnt', rejected, mods, isAdmin, 'rejected');
 
   if (!suggested.length && !approved.length && !rejected.length) {
-    html += '<div class="card"><p class="empty">Noch keine Mods vorgeschlagen.</p></div>';
+    html += '<div class="card bg-dark border-secondary mb-3"><div class="card-body"><p class="text-muted fst-italic">Noch keine Mods vorgeschlagen.</p></div></div>';
   }
 
-  document.getElementById("app").innerHTML = html;
+  document.getElementById("mods-sections").innerHTML = html;
 }
 
 function renderModList(list, allMods, isAdmin) {
@@ -379,7 +505,8 @@ function renderModList(list, allMods, isAdmin) {
     const url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + m.workshop_id;
     const title = m.title || m.workshop_id;
     const badge = m.status === "approved" ? "approved" : m.status === "rejected" ? "rejected" : "suggested";
-    const badgeText = m.status === "approved" ? "Genehmigt" : m.status === "rejected" ? "Abgelehnt" : "Vorschlag";
+    const badgeLabel = m.status === "approved" ? "Genehmigt" : m.status === "rejected" ? "Abgelehnt" : "Vorschlag";
+    const badgeClass = badge === "approved" ? "bg-success" : badge === "rejected" ? "bg-danger" : "bg-primary";
 
     let voteButtons = "";
     if (m.status === "suggested") {
@@ -396,14 +523,14 @@ function renderModList(list, allMods, isAdmin) {
 
     let adminButtons = "";
     if (m.status === "suggested" && isAdmin) {
-      adminButtons = '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\'approved\')">Genehmigen</button>' +
-        '<button class="btn-reject btn-sm" onclick="stage(' + idx + ',\'rejected\')">Ablehnen</button>';
+      adminButtons = '<button class="btn btn-success btn-sm" onclick="stage(' + idx + ',\'approved\')">Genehmigen</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="stage(' + idx + ',\'rejected\')">Ablehnen</button>';
     }
     if (isAdmin && m.status === "approved") {
-      adminButtons = '<button class="btn-reject btn-sm" onclick="stage(' + idx + ',\'rejected\')">Entfernen</button>';
+      adminButtons = '<button class="btn btn-danger btn-sm" onclick="stage(' + idx + ',\'rejected\')">Entfernen</button>';
     }
     if (isAdmin && m.status === "rejected") {
-      adminButtons = '<button class="btn-approve btn-sm" onclick="stage(' + idx + ',\'approved\')">Genehmigen</button>';
+      adminButtons = '<button class="btn btn-success btn-sm" onclick="stage(' + idx + ',\'approved\')">Genehmigen</button>';
     }
     if (isAdmin) {
       adminButtons += '<button class="btn-delete btn-sm" onclick="deleteMod(' + idx + ')">\u{1F5D1}</button>';
@@ -434,7 +561,7 @@ function renderModList(list, allMods, isAdmin) {
       '<a href="#" onclick="showDetail(\'' + m.workshop_id + '\');return false">' + img + '</a>' +
       '<div class="mod-info">' +
         '<div class="mod-title"><a href="#" onclick="showDetail(\'' + m.workshop_id + '\');return false" class="mod-title-text">' + title + '</a> ' +
-          '<span class="badge badge-' + badge + '">' + badgeText + '</span></div>' +
+          '<span class="badge ' + badgeClass + '">' + badgeLabel + '</span></div>' +
         '<div class="mod-meta">Vorgeschlagen von ' + (m.suggested_by || "?") + '</div>' +
         '<div class="mod-meta">' + voterLine + '</div>' +
       '</div>' +
@@ -448,13 +575,15 @@ async function suggest() {
   const st = document.getElementById("add-status");
   const res = await api("POST", "/api/mods", { workshop_id: wid });
   if (res && res.ok) {
-    st.className = "status ok"; st.textContent = "Vorschlag eingereicht!";
+    st.style.display = "block";
+    st.className = "alert alert-success mt-2"; st.textContent = "Vorschlag eingereicht!";
     document.getElementById("workshop-id").value = "";
     render();
   } else {
-    st.className = "status err"; st.textContent = (res && res.error) || "Fehler";
+    st.style.display = "block";
+    st.className = "alert alert-danger mt-2"; st.textContent = (res && res.error) || "Fehler";
   }
-  setTimeout(() => { st.className = "status"; }, 3000);
+  setTimeout(() => { st.style.display = "none"; }, 3000);
 }
 
 function applyOptimisticVote(idx, value) {
@@ -487,6 +616,7 @@ async function deleteMod(idx) {
   render();
 }
 
+// ── Mod detail modal ──
 function showDetail(wid) {
   const m = currentMods.find(x => x.workshop_id === wid);
   if (!m) return;
@@ -496,7 +626,8 @@ function showDetail(wid) {
   const desc = m.description || "Keine Beschreibung verfügbar.";
   const imgSrc = m.image || "";
   const badge = m.status === "approved" ? "approved" : m.status === "rejected" ? "rejected" : "suggested";
-  const badgeText = m.status === "approved" ? "Genehmigt" : m.status === "rejected" ? "Abgelehnt" : "Vorschlag";
+  const badgeLabel = m.status === "approved" ? "Genehmigt" : m.status === "rejected" ? "Abgelehnt" : "Vorschlag";
+  const badgeClass = badge === "approved" ? "bg-success" : badge === "rejected" ? "bg-danger" : "bg-primary";
   const votes = m.votes || {};
   const myVote = votes[currentUser.username] || 0;
   const dv = discordVotes[wid] || {};
@@ -523,26 +654,30 @@ function showDetail(wid) {
     }
   }
 
-  const root = document.getElementById("modal-root");
-  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
-    '<div class="modal">' +
-      '<button class="modal-close" onclick="closeDetail()">&times;</button>' +
-      (imgSrc ? '<img class="modal-img" src="' + imgSrc + '">' : '') +
-      '<div class="modal-body">' +
-        '<h2>' + title + ' <span class="badge badge-' + badge + '">' + badgeText + '</span></h2>' +
-        '<div class="mod-meta">Vorgeschlagen von ' + (m.suggested_by || "?") + '</div>' +
-        (voteHtml ? '<div style="margin:1rem 0;display:flex;align-items:center;gap:0.5rem">' + voteHtml + '</div>' : '') +
-        '<div class="modal-desc">' + desc.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>") + '</div>' +
-        '<div class="modal-actions">' +
-          '<a href="' + url + '" target="_blank"><button class="btn-steam">Auf Steam ansehen</button></a>' +
-        '</div>' +
-      '</div>' +
-    '</div></div>';
+  let bodyHtml = '';
+  if (imgSrc) bodyHtml += '<img class="modal-img" src="' + imgSrc + '" alt="">';
+  bodyHtml += '<div class="modal-header border-secondary">' +
+    '<h5 class="modal-title">' + title + ' <span class="badge ' + badgeClass + '">' + badgeLabel + '</span></h5>' +
+    '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>';
+  bodyHtml += '<div class="modal-body">';
+  bodyHtml += '<div class="mod-meta">Vorgeschlagen von ' + (m.suggested_by || "?") + '</div>';
+  if (voteHtml) bodyHtml += '<div style="margin:1rem 0;display:flex;align-items:center;gap:0.5rem">' + voteHtml + '</div>';
+  bodyHtml += '<div class="modal-desc">' + desc.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>") + '</div>';
+  bodyHtml += '<div class="d-flex gap-2 mt-3 flex-wrap">' +
+    '<a href="' + url + '" target="_blank"><button class="btn btn-steam">Auf Steam ansehen</button></a></div>';
+  bodyHtml += '</div>';
+
+  document.getElementById("detail-modal-body").innerHTML = bodyHtml;
+
+  if (!detailModalInstance) {
+    detailModalInstance = new bootstrap.Modal(document.getElementById("detailModal"));
+  }
+  detailModalInstance.show();
 
   if (!m.description) {
     api("GET", "/api/lookup/" + wid).then(data => {
       if (data && data.description) {
-        const el = root.querySelector('.modal-desc');
+        const el = document.querySelector('#detailModal .modal-desc');
         if (el) el.innerHTML = data.description.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>");
       }
     });
@@ -555,9 +690,8 @@ async function modalVote(idx, value) {
   await api("POST", "/api/mods/" + idx + "/vote", { value: value });
 }
 
-
 function closeDetail() {
-  document.getElementById("modal-root").innerHTML = "";
+  if (detailModalInstance) detailModalInstance.hide();
 }
 
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetail(); });
@@ -569,16 +703,18 @@ async function refreshDiscordVotes() {
   if (dv) { discordVotes = dv; renderMods(currentMods); }
 }
 
+// ── Users modal ──
 async function showUsers() {
-  const root = document.getElementById("modal-root");
-  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
-    '<div class="modal"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
-    '<div class="modal-body"><h2>Benutzer</h2><div id="user-list"><span class="loading">Laden...</span></div></div></div></div>';
+  if (!usersModalInstance) {
+    usersModalInstance = new bootstrap.Modal(document.getElementById("usersModal"));
+  }
+  document.getElementById("user-list").innerHTML = '<span class="text-muted fst-italic">Laden...</span>';
+  usersModalInstance.show();
   const users = await api("GET", "/api/users");
   const el = document.getElementById("user-list");
   if (!el) return;
-  if (!users || users.error) { el.innerHTML = '<span class="empty">Fehler beim Laden</span>'; return; }
-  if (!users.length) { el.innerHTML = '<span class="empty">Keine Benutzer</span>'; return; }
+  if (!users || users.error) { el.innerHTML = '<span class="text-muted fst-italic">Fehler beim Laden</span>'; return; }
+  if (!users.length) { el.innerHTML = '<span class="text-muted fst-italic">Keine Benutzer</span>'; return; }
   el.innerHTML = users.map(u => {
     const avatar = u.avatar_url ? '<img class="avatar" src="' + u.avatar_url + '">' : '';
     const nameCls = u.banned ? "user-name banned" : "user-name";
@@ -587,12 +723,12 @@ async function showUsers() {
     let btn = '';
     if (!u.is_admin) {
       btn = u.banned
-        ? '<button class="btn-unban" onclick="toggleBan(\'' + u.discord_id + '\')">Entsperren</button>'
-        : '<button class="btn-ban" onclick="toggleBan(\'' + u.discord_id + '\')">Sperren</button>';
+        ? '<button class="btn btn-success btn-sm" onclick="toggleBan(\'' + u.discord_id + '\')">Entsperren</button>'
+        : '<button class="btn btn-danger btn-sm" onclick="toggleBan(\'' + u.discord_id + '\')">Sperren</button>';
     }
     return '<div class="user-row">' + avatar +
       '<div class="' + nameCls + '">' + u.username + adminBadge + '</div>' +
-      '<div class="user-stats">' + u.votes_cast + ' Stimmen · ' + pending + '</div>' +
+      '<div class="user-stats">' + u.votes_cast + ' Stimmen &middot; ' + pending + '</div>' +
       '<div class="user-stats">Login: ' + u.last_login + '</div>' +
       btn + '</div>';
   }).join("");
@@ -603,14 +739,16 @@ async function toggleBan(uid) {
   showUsers();
 }
 
-async function showBooks() {
-  const root = document.getElementById("modal-root");
-  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
-    '<div class="modal"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
-    '<div class="modal-body"><h2>Skill-Bücher</h2><div id="book-list"><span class="loading">Laden...</span></div></div></div></div>';
+// ── Books page ──
+async function loadBooks() {
+  document.getElementById("book-list").innerHTML = '<span class="text-muted fst-italic">Laden...</span>';
   const data = await api("GET", "/api/books");
   if (!data) return;
   renderBooks(data);
+}
+
+async function showBooks() {
+  navigateTo('books');
 }
 
 function renderBooks(data) {
@@ -618,12 +756,14 @@ function renderBooks(data) {
   if (!el) return;
   const totalBooks = data.reduce((s, g) => s + g.books.length, 0);
   const totalChecked = data.reduce((s, g) => s + g.books.filter(b => b.checked).length, 0);
-  let html = '<div class="mod-meta" style="margin-bottom:1rem">' + totalChecked + ' / ' + totalBooks + ' gefunden</div>';
+  let html = '<div class="mod-meta mb-3">' + totalChecked + ' / ' + totalBooks + ' gefunden</div>';
   html += data.map(group => {
     const checked = group.books.filter(b => b.checked).length;
     const total = group.books.length;
+    const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
     return '<div class="book-group">' +
-      '<h3>' + group.skill + ' <span class="progress">' + checked + '/' + total + '</span></h3>' +
+      '<h3>' + group.skill + ' <span class="progress-text">' + checked + '/' + total + '</span></h3>' +
+      '<div class="progress mb-2" style="height:4px"><div class="progress-bar bg-success" style="width:' + pct + '%"></div></div>' +
       group.books.map(b => {
         const checkCls = b.checked ? "book-check checked" : "book-check";
         const nameCls = b.checked ? "book-name checked" : "book-name";
@@ -644,14 +784,22 @@ async function toggleBook(id) {
   if (data) renderBooks(data);
 }
 
-async function showStats() {
-  const root = document.getElementById("modal-root");
-  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
-    '<div class="modal"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
-    '<div class="modal-body"><h2>Statistiken</h2><div id="stats-content"><span class="loading">Laden...</span></div></div></div></div>';
+// ── Stats page ──
+async function loadStats() {
+  document.getElementById("stats-content").innerHTML = '<span class="text-muted fst-italic">Laden...</span>';
   const data = await api("GET", "/api/stats");
   const el = document.getElementById("stats-content");
   if (!el || !data) return;
+  renderStatsContent(data);
+}
+
+async function showStats() {
+  navigateTo('stats');
+}
+
+function renderStatsContent(data) {
+  const el = document.getElementById("stats-content");
+  if (!el) return;
 
   const srv = data.server || {};
   const players = data.players || [];
@@ -675,50 +823,55 @@ async function showStats() {
     '</div>';
 
   if (players.length) {
-    html += '<table class="stats-table"><tr><th>Spieler</th><th>Sessions</th><th>Tode</th><th>Tode/Session</th><th>Spielzeit</th><th>Zuletzt gesehen</th></tr>';
+    html += '<div class="table-responsive"><table class="table table-dark table-striped table-hover">' +
+      '<thead><tr><th>Spieler</th><th>Sessions</th><th>Tode</th><th>Tode/Session</th><th>Spielzeit</th><th>Zuletzt gesehen</th></tr></thead><tbody>';
     html += players.map(p =>
       '<tr><td><strong>' + p.name + '</strong></td>' +
       '<td>' + p.sessions + '</td>' +
       '<td>' + p.deaths + '</td>' +
       '<td>' + p.deaths_per_session + '</td>' +
       '<td>' + fmtTime(p.playtime_min) + '</td>' +
-      '<td style="color:#888">' + (p.last_seen || '?') + '</td></tr>'
+      '<td class="text-muted">' + (p.last_seen || '?') + '</td></tr>'
     ).join("");
-    html += '</table>';
+    html += '</tbody></table></div>';
   } else {
-    html += '<p class="empty">Noch keine Daten vorhanden.</p>';
+    html += '<p class="text-muted fst-italic">Noch keine Daten vorhanden.</p>';
   }
 
   el.innerHTML = html;
 }
 
+// ── Board page ──
 let boardType = "suche";
 
-async function showBoard() {
-  const root = document.getElementById("modal-root");
-  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
-    '<div class="modal"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
-    '<div class="modal-body"><h2>Ressourcen-Board</h2>' +
-    '<div style="display:flex;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">' +
-      '<div class="type-toggle">' +
-        '<button class="' + (boardType === "suche" ? "active" : "") + '" onclick="boardType=\'suche\';showBoard()">Suche</button>' +
-        '<button class="' + (boardType === "biete" ? "active" : "") + '" onclick="boardType=\'biete\';showBoard()">Biete</button>' +
-      '</div>' +
-      '<input type="text" id="post-text" placeholder="Was brauchst du / bietest du an?" style="flex:1;min-width:150px" onkeydown="if(event.key===\'Enter\')createPost()">' +
-      '<input type="text" id="post-location" placeholder="Ort (optional)" style="width:180px">' +
-      '<button class="btn-primary" onclick="createPost()">Posten</button>' +
-    '</div>' +
-    '<div id="post-status" class="status"></div>' +
-    '<div id="post-list"><span class="loading">Laden...</span></div>' +
-    '</div></div></div>';
+async function loadBoard() {
+  document.getElementById("post-list").innerHTML = '<span class="text-muted fst-italic">Laden...</span>';
+  updateBoardToggle();
   const posts = await api("GET", "/api/posts");
   renderPosts(posts);
+}
+
+async function showBoard() {
+  navigateTo('board');
+}
+
+function setBoardType(type) {
+  boardType = type;
+  updateBoardToggle();
+}
+
+function updateBoardToggle() {
+  const toggle = document.getElementById("board-type-toggle");
+  if (!toggle) return;
+  const buttons = toggle.querySelectorAll("button");
+  buttons[0].className = boardType === "suche" ? "btn btn-outline-danger active" : "btn btn-outline-danger";
+  buttons[1].className = boardType === "biete" ? "btn btn-outline-success active" : "btn btn-outline-success";
 }
 
 function renderPosts(posts) {
   const el = document.getElementById("post-list");
   if (!el) return;
-  if (!posts || !posts.length) { el.innerHTML = '<p class="empty">Keine Einträge</p>'; return; }
+  if (!posts || !posts.length) { el.innerHTML = '<p class="text-muted fst-italic">Keine Einträge</p>'; return; }
   el.innerHTML = posts.map(p => {
     const staleCls = p.stale ? " stale" : "";
     const canDelete = p.author === currentUser.username || currentUser.role === "admin";
@@ -740,15 +893,17 @@ async function createPost() {
   const st = document.getElementById("post-status");
   const res = await api("POST", "/api/posts", { type: boardType, text: text, location: location });
   if (res && res.ok) {
-    st.className = "status ok"; st.textContent = "Gepostet!";
+    st.style.display = "block";
+    st.className = "alert alert-success"; st.textContent = "Gepostet!";
     document.getElementById("post-text").value = "";
     document.getElementById("post-location").value = "";
     const posts = await api("GET", "/api/posts");
     renderPosts(posts);
   } else {
-    st.className = "status err"; st.textContent = (res && res.error) || "Fehler";
+    st.style.display = "block";
+    st.className = "alert alert-danger"; st.textContent = (res && res.error) || "Fehler";
   }
-  setTimeout(() => { st.className = "status"; }, 3000);
+  setTimeout(() => { st.style.display = "none"; }, 3000);
 }
 
 async function deletePost(id) {
@@ -758,16 +913,12 @@ async function deletePost(id) {
   renderPosts(posts);
 }
 
+// ── Config page ──
 let configData = null;
 let configChanges = {};
 
-async function showConfig() {
-  const root = document.getElementById("modal-root");
-  root.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeDetail()">' +
-    '<div class="modal" style="max-width:800px"><button class="modal-close" onclick="closeDetail()">&times;</button>' +
-    '<div class="modal-body"><h2>Server-Konfiguration</h2>' +
-    '<div id="config-content"><span class="loading">Laden...</span></div>' +
-    '</div></div></div>';
+async function loadConfig() {
+  document.getElementById("config-content").innerHTML = '<span class="text-muted fst-italic">Laden...</span>';
   configChanges = {};
   const [config, proposals] = await Promise.all([
     api("GET", "/api/config"),
@@ -775,6 +926,10 @@ async function showConfig() {
   ]);
   configData = config;
   renderConfig(config, proposals);
+}
+
+async function showConfig() {
+  navigateTo('config');
 }
 
 function renderConfig(config, proposals) {
@@ -787,23 +942,25 @@ function renderConfig(config, proposals) {
   let html = '';
 
   if (pending.length) {
-    html += '<div class="card" style="margin-bottom:1rem"><h3 style="color:#e94560;margin-bottom:0.5rem">Offene Vorschläge (' + pending.length + ')</h3>';
+    html += '<div class="card bg-dark border-secondary mb-3"><div class="card-body">' +
+      '<h3 style="color:#e94560;margin-bottom:0.5rem">Offene Vorschläge (' + pending.length + ')</h3>';
     html += pending.map(p => {
       const diffs = Object.entries(p.changes).map(([k, c]) =>
         '<li>' + c.label + ': <span style="color:#e94560">' + c.from + '</span> → <span style="color:#4caf50">' + c.to + '</span></li>'
       ).join("");
       let btns = "";
       if (isAdmin) {
-        btns = '<button class="btn-approve btn-sm" onclick="stageProposal(\'' + p.id + '\',\'approved\')">Genehmigen</button> ' +
-          '<button class="btn-reject btn-sm" onclick="stageProposal(\'' + p.id + '\',\'rejected\')">Ablehnen</button>';
+        btns = '<button class="btn btn-success btn-sm" onclick="stageProposal(\'' + p.id + '\',\'approved\')">Genehmigen</button> ' +
+          '<button class="btn btn-danger btn-sm" onclick="stageProposal(\'' + p.id + '\',\'rejected\')">Ablehnen</button>';
       }
       return '<div class="proposal-item"><div class="mod-meta">von ' + p.proposed_by + ' · ' + p.created_at + '</div>' +
         '<ul class="proposal-diff">' + diffs + '</ul>' + btns + '</div>';
     }).join("");
-    html += '</div>';
+    html += '</div></div>';
   }
 
-  html += config.map(group => {
+  html += '<div class="accordion" id="configAccordion">';
+  html += config.map((group, gi) => {
     const rows = group.settings.map(s => {
       const val = configChanges[s.key] !== undefined ? configChanges[s.key] : s.current;
       const changed = configChanges[s.key] !== undefined && configChanges[s.key] !== s.current;
@@ -812,31 +969,35 @@ function renderConfig(config, proposals) {
       const defaultTag = s.is_default ? ' <span class="config-default">(Standard)</span>' : '';
       let input = "";
       if (s.type === "select") {
-        input = '<select class="' + changedCls + '" onchange="configChange(\'' + s.key + '\',this.value)">';
+        input = '<select class="form-select form-select-sm bg-dark border-secondary text-light' + changedCls + '" onchange="configChange(\'' + s.key + '\',this.value)">';
         for (const [optVal, optLabel] of Object.entries(s.options)) {
           const sel = String(val) === optVal ? " selected" : "";
           input += '<option value="' + optVal + '"' + sel + '>' + optLabel + '</option>';
         }
         input += '</select>';
       } else if (s.type === "boolean") {
-        input = '<select class="' + changedCls + '" onchange="configChange(\'' + s.key + '\',this.value===\'true\')">' +
+        input = '<select class="form-select form-select-sm bg-dark border-secondary text-light' + changedCls + '" onchange="configChange(\'' + s.key + '\',this.value===\'true\')">' +
           '<option value="true"' + (val === true ? " selected" : "") + '>Ja</option>' +
           '<option value="false"' + (val === false || val === "false" ? " selected" : "") + '>Nein</option></select>';
       } else if (s.type === "number") {
-        input = '<input type="number" class="' + changedCls + '" value="' + val + '" onchange="configChange(\'' + s.key + '\',parseFloat(this.value))">';
+        input = '<input type="number" class="form-control form-control-sm bg-dark border-secondary text-light' + changedCls + '" value="' + val + '" onchange="configChange(\'' + s.key + '\',parseFloat(this.value))" style="width:80px">';
       } else {
-        input = '<input type="text" class="' + changedCls + '" value="' + (val || "") + '" onchange="configChange(\'' + s.key + '\',this.value)">';
+        input = '<input type="text" class="form-control form-control-sm bg-dark border-secondary text-light' + changedCls + '" value="' + (val || "") + '" onchange="configChange(\'' + s.key + '\',this.value)" style="width:200px">';
       }
       return '<div class="config-row"><div class="config-label">' + s.label + sandboxWarn + defaultTag + '</div><div class="config-input">' + input + '</div></div>';
     }).join("");
-    return '<div class="config-group"><h3>' + group.group + '</h3>' + rows + '</div>';
+    const collapseId = 'configGroup' + gi;
+    return '<div class="accordion-item bg-dark border-secondary">' +
+      '<h2 class="accordion-header"><button class="accordion-button collapsed bg-dark text-light" type="button" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '">' + group.group + '</button></h2>' +
+      '<div id="' + collapseId + '" class="accordion-collapse collapse" data-bs-parent="#configAccordion"><div class="accordion-body">' + rows + '</div></div></div>';
   }).join("");
+  html += '</div>';
 
   if (hasChanges) {
-    html += '<div style="position:sticky;bottom:0;background:#16213e;padding:1rem;border-top:1px solid #333;display:flex;gap:0.75rem;align-items:center">' +
-      '<span style="color:#e94560;font-weight:500">' + Object.keys(configChanges).length + ' Änderung(en)</span>' +
-      '<button class="btn-primary" onclick="proposeChanges()">Vorschlagen</button>' +
-      '<button class="toggle-btn" onclick="configChanges={};showConfig()">Zurücksetzen</button></div>';
+    html += '<div class="d-flex gap-2 align-items-center p-3 mt-3 border-top border-secondary" style="position:sticky;bottom:0;background:#16213e">' +
+      '<span class="accent fw-bold">' + Object.keys(configChanges).length + ' Änderung(en)</span>' +
+      '<button class="btn btn-accent" onclick="proposeChanges()">Vorschlagen</button>' +
+      '<button class="btn btn-outline-secondary" onclick="configChanges={};loadConfig()">Zurücksetzen</button></div>';
   }
 
   el.innerHTML = html;
@@ -857,15 +1018,16 @@ async function proposeChanges() {
   const res = await api("POST", "/api/config/propose", { changes: configChanges });
   if (res && res.ok) {
     configChanges = {};
-    showConfig();
+    loadConfig();
   }
 }
 
 async function stageProposal(id, status) {
   await api("POST", "/api/config/" + id + "/stage", { status: status });
-  showConfig();
+  loadConfig();
 }
 
+// ── Init ──
 checkSession();
 </script>
 </body>
