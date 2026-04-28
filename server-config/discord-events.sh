@@ -3,6 +3,7 @@
 # Also maintains a live player list message.
 
 LOG_DIR="/home/steam/Zomboid/Logs"
+SERVER_STATUS_FILE="/home/steam/Zomboid/.server_status"
 DISCORD_API="https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages"
 AUTH_HEADER="Authorization: Bot ${DISCORD_TOKEN}"
 PLAYER_FILE="/tmp/online_players.txt"
@@ -183,7 +184,7 @@ wait_for_log() {
     done
 }
 
-trap 'send_event ":octagonal_sign: **Server wird heruntergefahren...**"; kill $(jobs -p) 2>/dev/null; exit 0' SIGTERM SIGINT
+trap 'kill $(jobs -p) 2>/dev/null; exit 0' SIGTERM SIGINT
 
 init_status_msg
 init_event_thread
@@ -286,6 +287,32 @@ watch_user_log() {
     done
 }
 
+# Watch the server status file for start/stop signals
+watch_server_status() {
+    local last_status=""
+    while true; do
+        local status
+        status=$(cat "$SERVER_STATUS_FILE" 2>/dev/null || echo "")
+        if [ "$status" != "$last_status" ] && [ -n "$status" ]; then
+            case "$status" in
+                starting)
+                    send_event ":hourglass: **Server startet...**"
+                    echo "discord-events: [status] server starting" ;;
+                stopping)
+                    send_event ":octagonal_sign: **Server wird heruntergefahren...**"
+                    > "$PLAYER_FILE"
+                    update_player_list
+                    echo "discord-events: [status] server stopping" ;;
+                stopped)
+                    echo "discord-events: [status] server stopped" ;;
+            esac
+            last_status="$status"
+        fi
+        sleep 3
+    done
+}
+
+watch_server_status &
 watch_server_log &
 watch_user_log &
 wait

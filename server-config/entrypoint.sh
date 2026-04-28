@@ -134,78 +134,32 @@ load_mods() {
         echo "entrypoint: MOD_NAMES=${MOD_NAMES}"
     fi
 }
+STATUS_FILE="/home/steam/Zomboid/.server_status"
+
+write_status() {
+    echo "$1" > "$STATUS_FILE"
+    echo "entrypoint: status → $1"
+}
+
+trap 'write_status "stopping"; kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null; write_status "stopped"' SIGTERM SIGINT
+
 load_mods
-
-# Detect first boot before starting the server
-FIRST_BOOT=false
-[ ! -f "$SERVER_INI" ] && FIRST_BOOT=true
-
-# If .ini already exists from a previous run, patch before server starts
 patch_ini
 
-# Start the server
+write_status "starting"
+
+# Start the server (handles steamcmd update + first boot config generation)
 /home/steam/run_server.sh &
 SERVER_PID=$!
 
-# First boot: wait for .ini to be generated, patch it, restart server
-if $FIRST_BOOT; then
-    echo "entrypoint: first boot — waiting for .ini generation..."
-    while [ ! -f "$SERVER_INI" ]; do
-        sleep 2
-    done
-    patch_ini
-    echo "entrypoint: first-boot patching done. Re-discovering mods and restarting..."
-    kill $SERVER_PID
-    wait $SERVER_PID 2>/dev/null
+# Wait for .ini to appear (first boot), then patch and restart once
+if [ ! -f "$SERVER_INI" ]; then
+    echo "entrypoint: waiting for config generation..."
+    while [ ! -f "$SERVER_INI" ]; do sleep 2; done
     load_mods
-    /home/steam/run_server.sh &
-    SERVER_PID=$!
+    patch_ini
 fi
-
-# Watch for workshop downloads and auto-discover Mod IDs
-SAVED_MOD_NAMES="$MOD_NAMES"
-{
-    LOG_DIR="/home/steam/Zomboid/Logs"
-    # Wait for log file
-    while ! ls "${LOG_DIR}"/*_DebugLog-server.txt &>/dev/null; do sleep 5; done
-    LOG_FILE=$(ls -t "${LOG_DIR}"/*_DebugLog-server.txt | head -1)
-
-    # Watch log for workshop installs and server start
-    downloads_seen=0
-    tail -n +1 -F "$LOG_FILE" 2>/dev/null | while read -r line; do
-        case "$line" in
-            *"Workshop:"*"installed to"*)
-                wid=$(echo "$line" | grep -oP 'Workshop: \K[0-9]+')
-                path=$(echo "$line" | grep -oP 'installed to \K.+')
-                if [ -n "$wid" ] && [ -n "$path" ]; then
-                    mid=$(find "$path" -name "mod.info" -exec grep -oP '^id=\K.+' {} \; 2>/dev/null | head -1 | tr -d '[:space:]')
-                    echo "entrypoint: workshop ${wid} installed → Mod ID: ${mid:-NOT FOUND}"
-                    downloads_seen=$((downloads_seen + 1))
-                fi ;;
-            *"SERVER STARTED"*)
-                if [ $downloads_seen -gt 0 ]; then
-                    echo "entrypoint: ${downloads_seen} mod(s) downloaded, re-discovering..."
-                    load_mods
-                    if [ "$MOD_NAMES" != "$SAVED_MOD_NAMES" ] && [ -n "$MOD_NAMES" ]; then
-                        echo "entrypoint: new MOD_NAMES=${MOD_NAMES}"
-                        echo "entrypoint: restarting server to activate mods..."
-                        kill $SERVER_PID 2>/dev/null
-                    fi
-                fi
-                break ;;
-        esac
-    done
-} &
-WATCHER_PID=$!
 
 # Keep container alive
-wait $SERVER_PID 2>/dev/null
-kill $WATCHER_PID 2>/dev/null
-
-# If server was killed for mod re-discovery, restart with updated IDs
-load_mods
-if [ "$MOD_NAMES" != "$SAVED_MOD_NAMES" ] && [ -n "$MOD_NAMES" ]; then
-    echo "entrypoint: restarting with MOD_NAMES=${MOD_NAMES}"
-    /home/steam/run_server.sh &
-    wait $!
-fi
+wait $SERVER_PID
+write_status "stopped"
