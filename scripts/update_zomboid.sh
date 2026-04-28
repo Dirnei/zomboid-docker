@@ -1,2 +1,2 @@
 #!/bin/bash
-"$(dirname "$0")/_update.sh" zomboid
+"$(dirname "$0")/_update.sh" zomboid "$@"

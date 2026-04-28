@@ -1,2 +1,2 @@
 #!/bin/bash
-"$(dirname "$0")/_update.sh"
+"$(dirname "$0")/_update.sh" "$@"
