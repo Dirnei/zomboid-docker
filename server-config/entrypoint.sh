@@ -16,6 +16,8 @@ patch_ini() {
     [ -n "$MAX_PLAYERS" ]        && patch_key "MaxPlayers" "$MAX_PLAYERS"
     [ -n "$DISCORD_TOKEN" ]      && patch_key "DiscordToken" "$DISCORD_TOKEN"
     [ -n "$DISCORD_CHANNEL_ID" ] && patch_key "DiscordChannelID" "$DISCORD_CHANNEL_ID"
+    [ -n "$MOD_IDS" ]            && patch_key "Mods" "$MOD_IDS"
+    [ -n "$MOD_WORKSHOP_IDS" ]   && patch_key "WorkshopItems" "$MOD_WORKSHOP_IDS"
 
     # File-based overrides
     if [ -f "$OVERRIDES" ]; then
@@ -84,9 +86,13 @@ MODS_FILE="/overrides/mods.txt"
 load_mods() {
     [ ! -f "$MODS_FILE" ] && return
     prescan_mods
-    local workshop_ids="" mod_ids=""
+    local workshop_ids="" mod_ids="" updated=false
+    local -a lines=()
     while IFS= read -r line; do
-        [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+        if [[ "$line" =~ ^#.*$ || -z "$line" ]]; then
+            lines+=("$line")
+            continue
+        fi
         local wid="" mid=""
         if [[ "$line" =~ id=([0-9]+) ]]; then
             wid="${BASH_REMATCH[1]}"
@@ -102,10 +108,22 @@ load_mods() {
         if [ -z "$mid" ]; then
             mid=$(discover_mod_id "$wid")
         fi
-        [ -n "$mid" ] && echo "entrypoint: ${wid} → ${mid}"
+        if [ -n "$mid" ]; then
+            echo "entrypoint: ${wid} → ${mid}"
+            lines+=("${wid} ${mid}")
+            # Check if we discovered a new ID (line didn't have one)
+            [ "$(echo "$line" | awk '{print $2}')" != "$mid" ] && updated=true
+        else
+            lines+=("${wid}")
+        fi
         workshop_ids="${workshop_ids:+${workshop_ids};}${wid}"
         [ -n "$mid" ] && mod_ids="${mod_ids:+${mod_ids};}${mid}"
     done < "$MODS_FILE"
+    # Write back discovered IDs to mods.txt
+    if $updated; then
+        printf '%s\n' "${lines[@]}" > "$MODS_FILE"
+        echo "entrypoint: updated mods.txt with discovered Mod IDs"
+    fi
     if [ -n "$workshop_ids" ]; then
         export MOD_WORKSHOP_IDS="$workshop_ids"
         export MOD_IDS="$mod_ids"

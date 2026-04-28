@@ -25,7 +25,7 @@ services:
       - ./server-config/SandboxVars.lua:/home/steam/Zomboid/Server/${SERVER_NAME}_SandboxVars.lua:ro
       - ./server-config/entrypoint.sh:/overrides/entrypoint.sh:ro
       - ./server-config/overrides.ini:/overrides/overrides.ini:ro
-      - ./mods.txt:/overrides/mods.txt:ro
+      - ./mods.txt:/overrides/mods.txt
     stdin_open: true
     tty: true
 
