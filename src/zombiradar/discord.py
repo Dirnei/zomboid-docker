@@ -21,7 +21,7 @@ _discord_votes_mem_time = 0
 _api_lock = threading.Lock()
 _api_last_call = 0
 _api_blocked_until = 0
-API_COOLDOWN = 600
+API_COOLDOWN = 1800
 
 
 def discord_api(method, path, body=None, token=None, content_type="application/json", skip_cooldown=False):
@@ -245,7 +245,7 @@ def _refresh_discord_votes(state):
     msg_ids = [
         mod.get("discord_msg_id")
         for mod in state["mods"]
-        if mod.get("discord_msg_id")
+        if mod.get("discord_msg_id") and mod.get("status") == "suggested"
     ]
     if not msg_ids:
         _refreshing = False
